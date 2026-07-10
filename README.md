@@ -4,9 +4,13 @@ A self-contained AI chat widget for [Astro](https://astro.build) sites. Floating
 
 Built for content/marketing sites that have an AI backend (RAG, support bot) and want a production-quality chat UI without shipping a component framework for it.
 
-![A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word](docs/demo.webp)
+<p align="center">
+  <img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
+</p>
 
-<sub>The self-running showcase from `npm run demo` — the widget answering from the mock SSE backend.</sub>
+<p align="center">
+  <sub>The self-running showcase from <code>npm run demo</code> — the widget answering from the mock SSE backend.</sub>
+</p>
 
 ## Features
 
@@ -136,7 +140,9 @@ The widget reads `--acw-*` custom properties, **set on `:root`**. Every color de
 
 The default look is a dark glass panel that works on any page. This is the mobile sheet running exactly the override above:
 
-![The mobile sheet re-branded with a single --acw-accent override](docs/theming.webp)
+<p align="center">
+  <img src="docs/theming.webp" alt="The mobile sheet re-branded with a single --acw-accent override" width="390">
+</p>
 
 Full token list:
 
