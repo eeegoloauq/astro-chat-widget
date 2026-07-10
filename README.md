@@ -43,8 +43,13 @@ A fuller setup:
     greeting: 'Hi! Ask me anything about our products.',
   }}
   quickReplies={[
-    { text: 'What do you sell?', emoji: '🛒' },
-    { text: 'Delivery options', emoji: '🚚' },
+    { text: 'What do you sell?' },
+    {
+      text: 'Delivery options',
+      // `answer` makes the chip a local FAQ entry — instant, no backend call
+      answer: 'Courier **tomorrow**, pickup points in 2–3 days.',
+      followUps: [{ text: 'What do you sell?' }],
+    },
   ]}
 />
 ```
@@ -80,7 +85,7 @@ The optional `feedbackEndpoint` receives `POST { sessionId, messageId, rating: 1
 | `feedbackEndpoint` | `string` | `''` | Thumbs-rating endpoint. Without it, ratings persist locally only. |
 | `lang` | `string` | `'en'` | Sent to the backend with every message. |
 | `strings` | `Partial<ChatStrings>` | English | Every user-facing string — see `DEFAULT_STRINGS` export. |
-| `quickReplies` | `{ text, emoji? }[]` | `[]` | Starter chips under the greeting. |
+| `quickReplies` | `QuickReply[]` | `[]` | Starter chips under the greeting. `{ text, emoji? }` sends the text to the backend; add `answer` (markdown) to make a chip a **local FAQ entry** — answered instantly with no backend call — and `followUps: QuickReply[]` for the chips offered under that answer (an FAQ tree). |
 | `linkPrefix` | `{ add, skip? }` | — | Locale prefix for root-relative links in answers, e.g. `{ add: '/en', skip: ['/en', '/ru'] }` turns `/catalog` into `/en/catalog` and leaves `/ru/...` alone. |
 | `deepLinkHash` | `string \| false` | `'#chat'` | URL hash that opens the chat (for QR codes / emails). |
 | `storageKey` | `string` | `'acw-conversation'` | localStorage key — override to keep conversations when migrating from another widget. |
@@ -110,7 +115,7 @@ The widget dispatches CustomEvents on `document` — forward them to whatever yo
 
 ```js
 document.addEventListener('acw:open', () => ym(ID, 'reachGoal', 'open-ai-chat'))
-document.addEventListener('acw:send', (e) => ym(ID, 'reachGoal', 'send-ai-message')) // e.detail.text
+document.addEventListener('acw:send', (e) => ym(ID, 'reachGoal', 'send-ai-message')) // e.detail = { text, local? } — local: true for FAQ chips answered without a backend call
 document.addEventListener('acw:feedback', (e) => { /* e.detail = { messageId, rating } */ })
 ```
 
@@ -167,7 +172,7 @@ npm install
 npm run demo   # → http://localhost:4322
 ```
 
-Runs the widget in its default theme against a mock SSE backend (`demo/pages/api/chat.ts`) — canned answers about theming, markdown and the iOS keyboard, streamed word by word. [`/themed`](http://localhost:4322/themed) shows the same widget rebranded with a single `--acw-accent` override. The demo is dev-only and is not part of the published package.
+Runs the widget against a mock SSE backend (`demo/pages/api/chat.ts`) — canned answers about theming, markdown and the iOS keyboard, streamed word by word. The index page frames two self-running live previews (`demo/pages/embed.astro`): the desktop glass panel over a light page, and the mobile sheet rebranded with a single `--acw-accent` override. The FAB in the corner is the interactive instance. The demo is dev-only and is not part of the published package.
 
 ## Debugging the iOS keyboard
 
