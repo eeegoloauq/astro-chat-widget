@@ -12,7 +12,8 @@ Built for content/marketing sites that have an AI backend (RAG, support bot) and
 - **Hardened rendering** — DOM built via `createElement` only; unsafe URL schemes rejected; `<img>` in answers stripped (a prompt-injected backend must not fire outbound requests); `target=_blank` + `noopener` on external links; HTTPS enforced for endpoints in production builds.
 - **Single conversation** persisted in `localStorage` (30-day expiry, 50-message cap), with per-message 👍/👎 feedback.
 - Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, Stop-mid-stream that keeps the partial answer.
-- Full i18n via a strings prop; `prefers-reduced-motion` respected; ARIA throughout.
+- **Messenger ergonomics** — the conversation starts at the composer and grows upward; every open lands on the newest message; an unread dot lights the FAB when an answer finishes while the panel is closed; message times on hover.
+- Full i18n via a strings prop; `prefers-reduced-motion` respected; ARIA throughout — finished answers are announced to screen readers whole, not word by word.
 
 ## Install
 
@@ -137,7 +138,7 @@ The default look is a dark glass panel that works on any page. Full token list:
 | `--acw-accent-hover` / `-soft` / `-strong` / `-disabled` | Hover state · light variant (links, focus rings) · dark end of the FAB gradient · disabled send. |
 | `--acw-accent-glow-soft` / `-glow` / `-glow-strong` | FAB shadow at rest / pulse peak / hover. |
 | `--acw-on-accent` | Text/icon color on accent surfaces (default `#fff`). |
-| `--acw-danger` | Error-note tint (default `#e5484d`). |
+| `--acw-danger` | Error-note tint and the FAB unread dot (default `#e5484d`). |
 | `--acw-surface` | Desktop panel background (translucent for the glass effect). |
 | `--acw-surface-solid` | Mobile sheet + scrim background (must be opaque). |
 | `--acw-blur` | Desktop panel `backdrop-filter` (default `blur(24px) saturate(1.5)`). |
