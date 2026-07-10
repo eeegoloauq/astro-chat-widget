@@ -24,9 +24,15 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 // ── Messages ───────────────────────────────────────────────────────────────
 
-export function addUserMessage(scroller: HTMLElement, text: string): void {
+/** Sent-at tooltip (browser locale). Hover-only: zero visual noise, and the
+ *  data was in the store all along. */
+const timeTitle = (ts: number) =>
+  new Date(ts).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+export function addUserMessage(scroller: HTMLElement, text: string, ts?: number): void {
   const row = el('div', 'acw-msg acw-msg--user')
   const bubble = el('div', 'acw-msg-bubble', text)
+  if (ts) bubble.title = timeTitle(ts)
   row.appendChild(bubble)
   scroller.appendChild(row)
   scrollToBottom(scroller)
@@ -90,7 +96,7 @@ export function replayConversation(
   scroller.textContent = ''
   for (const message of conversation.messages) {
     if (message.role === 'user') {
-      addUserMessage(scroller, message.content)
+      addUserMessage(scroller, message.content, message.ts)
     } else {
       const row = el('div', 'acw-msg acw-msg--assistant')
       const content = el('div', 'acw-msg-content')
@@ -100,7 +106,7 @@ export function replayConversation(
       // The canned greeting is not an answer — nothing to copy or rate.
       // (content fallback covers conversations stored before `kind` existed)
       if (message.kind !== 'greeting' && message.content !== strings.greeting) {
-        attachMessageActions(row, message.id, strings, store, onFeedback)
+        attachMessageActions(row, message.id, strings, store, onFeedback, message.ts)
       }
     }
   }
@@ -153,15 +159,18 @@ async function copyToClipboard(text: string, host: HTMLElement): Promise<boolean
 
 /**
  * Copy + like/dislike bar under an assistant message. A saved rating renders
- * pre-selected and locked.
+ * pre-selected and locked. `ts` (when known) becomes the row's hover tooltip —
+ * this runs at every finalize point, so the timestamp rides along.
  */
 export function attachMessageActions(
   row: HTMLElement,
   messageId: string,
   strings: ChatStrings,
   store: ChatStore,
-  onFeedback: FeedbackHandler
+  onFeedback: FeedbackHandler,
+  ts?: number
 ): void {
+  if (ts) row.title = timeTitle(ts)
   const bar = el('div', 'acw-msg-actions')
 
   const copy = el('button', 'acw-action acw-action--copy')

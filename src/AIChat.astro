@@ -126,7 +126,10 @@ const config: ChatConfig = {
       </button>
     </header>
 
-    <div class="acw-messages" aria-live="polite" aria-relevant="additions"></div>
+    {/* NOT a live region: streamed words would be announced one by one.
+        The controller announces each completed answer via .acw-live below. */}
+    <div class="acw-messages"></div>
+    <div class="acw-live" role="status"></div>
 
     <form class="acw-form">
       <div class="acw-input-row">

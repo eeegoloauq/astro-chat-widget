@@ -14,6 +14,7 @@
 
 import { logger } from './logger'
 import { createPanel, resetInput } from './panel'
+import { scrollToBottom } from './scroll'
 import { sanitizeEndpoint, postChat, postFeedback, isSSEResponse, readSSEStream } from './transport'
 import { createStreamingRenderer } from './render'
 import { createStore, newMessageId } from './store'
@@ -39,7 +40,9 @@ export function createChat(root: HTMLElement): ChatApi {
   const store = createStore(config)
 
   const dialog = root.querySelector<HTMLDialogElement>('.acw-panel')!
+  const fab = root.querySelector<HTMLElement>('.acw-fab')!
   const scroller = root.querySelector<HTMLElement>('.acw-messages')!
+  const liveRegion = root.querySelector<HTMLElement>('.acw-live')!
   const form = root.querySelector<HTMLFormElement>('.acw-form')!
   const input = root.querySelector<HTMLTextAreaElement>('.acw-input')!
   const sendButton = root.querySelector<HTMLButtonElement>('.acw-send')!
@@ -65,6 +68,19 @@ export function createChat(root: HTMLElement): ChatApi {
   }
 
   const hasUserMessages = () => conversation.messages.some((m) => m.role === 'user')
+
+  /** Screen-reader announcement. The message list is deliberately NOT a live
+   *  region (it would stutter through the stream word by word) — finished
+   *  answers are announced whole via the hidden role=status element. */
+  const announce = (text: string) => {
+    liveRegion.textContent = text
+  }
+
+  /** Closing the panel doesn't abort the stream — an answer (or error) that
+   *  lands while it's closed lights the FAB dot; opening clears it. */
+  const markUnread = () => {
+    if (!dialog.open) fab.classList.add('has-unread')
+  }
 
   const setStreaming = (on: boolean) => {
     streaming = on
@@ -141,6 +157,7 @@ export function createChat(root: HTMLElement): ChatApi {
     setStreaming(true)
     requestController = new AbortController()
     const message = addAssistantMessage(scroller, strings)
+    announce(strings.thinking)
     let contentStarted = false
     let rawAccumulated = '' // raw markdown mirror of what the renderer got
 
@@ -187,9 +204,12 @@ export function createChat(root: HTMLElement): ChatApi {
 
       if (result.text) {
         const id = newMessageId()
-        convo.messages.push({ id, role: 'assistant', content: result.text, ts: Date.now() })
+        const ts = Date.now()
+        convo.messages.push({ id, role: 'assistant', content: result.text, ts })
         store.save(convo)
-        attachMessageActions(message.row, id, strings, store, handleFeedback)
+        attachMessageActions(message.row, id, strings, store, handleFeedback, ts)
+        announce(content.textContent || '')
+        markUnread()
         // Backend follow-up suggestions (optional in the done-event) become
         // quick-reply chips under the answer. Not persisted: they belong to
         // the moment, a replayed conversation shouldn't resurrect them.
@@ -205,6 +225,7 @@ export function createChat(root: HTMLElement): ChatApi {
       if (result.error) {
         logger.error('backend error event:', result.error)
         addErrorNote(scroller, strings.serverUnavailable, strings.retry, () => void request(text))
+        markUnread()
       }
     } catch (err) {
       const aborted = requestController.signal.aborted
@@ -216,15 +237,19 @@ export function createChat(root: HTMLElement): ChatApi {
       // raw markdown, so a replay re-renders it correctly.
       if (contentStarted && rawAccumulated) {
         const id = newMessageId()
-        convo.messages.push({ id, role: 'assistant', content: rawAccumulated, ts: Date.now() })
+        const ts = Date.now()
+        convo.messages.push({ id, role: 'assistant', content: rawAccumulated, ts })
         store.save(convo)
-        attachMessageActions(message.row, id, strings, store, handleFeedback)
+        attachMessageActions(message.row, id, strings, store, handleFeedback, ts)
+        announce(message.content.textContent || '')
+        markUnread()
       } else {
         message.remove()
       }
       if (!aborted) {
         logger.error('request failed:', err)
         addErrorNote(scroller, strings.serverUnavailable, strings.retry, () => void request(text))
+        markUnread()
       }
     } finally {
       setStreaming(false)
@@ -239,8 +264,9 @@ export function createChat(root: HTMLElement): ChatApi {
 
     hideQuickReplies(scroller)
     emit('acw:send', { text: trimmed })
-    addUserMessage(scroller, trimmed)
-    conversation.messages.push({ id: newMessageId(), role: 'user', content: trimmed, ts: Date.now() })
+    const ts = Date.now()
+    addUserMessage(scroller, trimmed, ts)
+    conversation.messages.push({ id: newMessageId(), role: 'user', content: trimmed, ts })
     store.save(conversation)
     resetInput(input)
 
@@ -259,11 +285,12 @@ export function createChat(root: HTMLElement): ChatApi {
     const convo = conversation
     hideQuickReplies(scroller)
     emit('acw:send', { text: reply.text, local: true })
-    addUserMessage(scroller, reply.text)
+    const ts = Date.now()
+    addUserMessage(scroller, reply.text, ts)
     // Persist both sides before the visual reveal (same rule as the greeting).
-    convo.messages.push({ id: newMessageId(), role: 'user', content: reply.text, ts: Date.now() })
+    convo.messages.push({ id: newMessageId(), role: 'user', content: reply.text, ts })
     const id = newMessageId()
-    convo.messages.push({ id, role: 'assistant', content: reply.answer!, ts: Date.now() })
+    convo.messages.push({ id, role: 'assistant', content: reply.answer!, ts })
     store.save(convo)
 
     const message = addAssistantMessage(scroller, strings)
@@ -276,7 +303,9 @@ export function createChat(root: HTMLElement): ChatApi {
       message.row.remove()
       return
     }
-    attachMessageActions(message.row, id, strings, store, handleFeedback)
+    attachMessageActions(message.row, id, strings, store, handleFeedback, ts)
+    announce(content.textContent || '')
+    markUnread()
     if (reply.followUps?.length) {
       showQuickReplies(scroller, strings.quickLabel, pickReply, reply.followUps)
     }
@@ -312,6 +341,7 @@ export function createChat(root: HTMLElement): ChatApi {
       message.row.remove()
       return
     }
+    announce(content.textContent || '')
     // A programmatic ask() may have landed while the greeting streamed
     if (!hasUserMessages()) {
       showQuickReplies(scroller, strings.quickLabel, pickReply, config.quickReplies)
@@ -343,8 +373,13 @@ export function createChat(root: HTMLElement): ChatApi {
 
   const panel = createPanel(dialog, input, {
     onOpen() {
+      fab.classList.remove('has-unread')
       emit('acw:open')
       renderInitial()
+      // Every open lands at the newest message (messenger convention) — while
+      // the panel is closed the scroller has no layout, so an answer that
+      // streamed in the background would otherwise sit below the fold.
+      scrollToBottom(scroller)
     },
     onSubmit,
   })
