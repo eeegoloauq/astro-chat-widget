@@ -1,0 +1,39 @@
+# Publishes the package to npm on every `v*` tag that reaches GitHub.
+#
+# Auth: `id-token: write` enables npm trusted publishing (OIDC) once the
+# publisher is configured on npmjs.com — from then on no token is involved
+# and provenance is attached automatically. Until then, `npm publish` falls
+# back to the NPM_TOKEN repository secret (which must be a granular token
+# with "bypass 2FA", otherwise CI dies asking for an OTP).
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      # OIDC trusted publishing needs npm >= 11.5.1
+      - run: npm install -g npm@latest
+
+      - run: npm ci
+
+      - run: npm run check
+
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
