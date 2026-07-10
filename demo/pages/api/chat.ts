@@ -19,7 +19,7 @@ const ANSWERS: { match: RegExp; text: string; suggestions: string[] }[] = [
       '}',
       '```',
       '',
-      'Open [/themed](/themed) to see this exact override live. The full token table is in the README — surfaces, borders, text hierarchy, radii and motion are all overridable independently.',
+      'The red phone frame on this page runs exactly this override. The full token table is in the README — surfaces, borders, text hierarchy, radii and motion are all overridable independently.',
     ].join('\n'),
     suggestions: ['Show markdown rendering', 'What about the iOS keyboard?'],
   },
@@ -69,6 +69,21 @@ const DEFAULT_ANSWER = {
 export const POST: APIRoute = async ({ request }) => {
   const { message = '' } = await request.json().catch(() => ({}))
   const answer = ANSWERS.find((a) => a.match.test(message)) ?? DEFAULT_ANSWER
+
+  // Hold the response so the widget's typing indicator ("Thinking…") gets its
+  // moment — a real backend is never instant. Before the return, not inside
+  // the stream: the indicator is swapped out as soon as headers arrive.
+  // The index-showcase iframes (same-origin Referer carries the /embed query)
+  // get choreography on top: the phone frame thinks a touch longer than the
+  // desktop one, and the iOS question is the long-think beat on both — held
+  // past the widget's 8s threshold so the typing label flips to "Taking a
+  // bit longer than usual…" before the answer lands.
+  const referer = request.headers.get('referer') || ''
+  const showcase = referer.includes('/embed')
+  const longThink = showcase && /ios|keyboard|клав/i.test(message)
+  await new Promise((r) =>
+    setTimeout(r, longThink ? 10500 : showcase && !referer.includes('desktop') ? 1800 : 700)
+  )
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({

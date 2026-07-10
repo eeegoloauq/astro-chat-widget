@@ -1,0 +1,238 @@
+---
+/**
+ * Self-running live preview for the demo index — the widget playing a
+ * scripted conversation on a loop against the real mock backend, loaded in
+ * an iframe. A "screenshot" that can't go stale.
+ *
+ * Two modes, driven by the iframe's own viewport (the widget's 768px
+ * breakpoint) plus query params:
+ *   default            narrow iframe → the mobile fullscreen sheet;
+ *                      the frame reads like a phone screen
+ *   ?desktop           wide iframe (>768px) → the floating glass panel +
+ *                      FAB over a light skeleton page ("your site")
+ *   ?accent=<color>    re-theme the frame (client-side --acw-accent)
+ *   ?start=<n>         first question index, so frames show different answers
+ *   ?lag=<ms>          delay the ask cycle: panels open together, but answers
+ *                      stream one frame at a time (single point of focus)
+ *
+ * Dev-only, like everything under demo/.
+ */
+import AIChat from '../../src/AIChat.astro'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>astro-chat-widget — live preview</title>
+    <!-- Before first paint, so the light skeleton never flashes in phone mode. -->
+    <script is:inline>
+      if (new URLSearchParams(location.search).has('desktop'))
+        document.documentElement.classList.add('is-desktop')
+    </script>
+  </head>
+  <body>
+    <!-- Desktop mode only: neutral stand-in for the host page. -->
+    <div class="site" aria-hidden="true">
+      <div class="site-nav">
+        <span class="dot"></span>
+        <span class="bar" style="width: 7rem"></span>
+        <span class="spacer"></span>
+        <span class="bar" style="width: 3.5rem"></span>
+        <span class="bar" style="width: 3.5rem"></span>
+        <span class="bar" style="width: 3.5rem"></span>
+      </div>
+      <div class="site-hero">
+        <div class="bar bar-lg" style="width: 46%"></div>
+        <div class="bar" style="width: 64%"></div>
+        <div class="bar" style="width: 55%"></div>
+      </div>
+      <div class="site-cards">
+        <div class="card"></div>
+        <div class="card"></div>
+        <div class="card"></div>
+      </div>
+    </div>
+
+    <AIChat
+      endpoint="/api/chat"
+      feedbackEndpoint="/api/feedback"
+      deepLinkHash={false}
+      storageKey="acw:embed"
+      feedbackStorageKey="acw:embed:feedback"
+      quickReplies={[
+        {
+          text: 'What can this widget do?',
+          answer: [
+            'Everything on this page ships as **one Astro component**:',
+            '',
+            '- Streaming answers over SSE, markdown rendered append-only',
+            '- Native `<dialog>` — modal on desktop, iOS-keyboard-proof sheet on mobile',
+            '- Theming via `--acw-*` tokens — one accent variable to rebrand',
+            '- FAQ chips like this one answer **instantly, without a backend call**',
+            '',
+            'Zero framework runtime, one dependency.',
+          ].join('\n'),
+          followUps: [
+            { text: 'Does it need a backend?' },
+            { text: 'Show markdown rendering' },
+          ],
+        },
+        { text: 'How do I theme it?' },
+        { text: 'What about the iOS keyboard?' },
+      ]}
+    />
+  </body>
+</html>
+
+<script>
+  const params = new URLSearchParams(window.location.search)
+
+  // setProperty takes the value as an opaque CSS token — no injection surface.
+  const accent = params.get('accent')
+  if (accent) document.documentElement.style.setProperty('--acw-accent', accent)
+
+  // Isolate each frame's conversation. The frames share the page origin, so
+  // a common storage key would leak one frame's just-sent question into the
+  // other's replay-on-open. Unique per-frame keys, wiped on load — the embed
+  // is a looping showcase, not a session.
+  try {
+    const root = document.querySelector<HTMLElement>('.acw-root')
+    const config = JSON.parse(root?.dataset.acwConfig || '{}')
+    const frame = params.has('desktop') ? 'desktop' : `phone${params.get('start') || ''}`
+    config.storageKey = `acw:embed:${frame}`
+    config.feedbackStorageKey = `acw:embed:${frame}:feedback`
+    localStorage.removeItem(config.storageKey)
+    localStorage.removeItem(config.feedbackStorageKey)
+    if (root) root.dataset.acwConfig = JSON.stringify(config)
+  } catch { /* storage may be unavailable in the iframe; store degrades too */ }
+
+  // The product defers the FAB reveal off the page-load path; in a looping
+  // showcase that deliberate patience reads as dead time — show it now.
+  document.querySelector('.acw-fab')?.classList.add('is-ready')
+
+  // One loop lap. `faq` beats click the on-screen chip (a local FAQ entry —
+  // instant answer, no backend); the rest go through acw:ask → SSE. The iOS
+  // question is the long-think beat: the mock holds it past the widget's 8s
+  // threshold, so the typing label flips to `thinkingLong` before the answer
+  // lands — hence its extended wait.
+  const BEATS = [
+    { text: 'What can this widget do?', faq: true, wait: 6500 },
+    { text: 'Show markdown rendering', wait: 7500 },
+    { text: 'How do I theme it?', wait: 7500 },
+    { text: 'What about the iOS keyboard?', wait: 16000 },
+  ]
+
+  const OPEN_DELAY = 1000 // one beat of closed FAB, then every frame opens in sync
+  const GREETING_TIME = 2200 // greeting reveal + a moment on the chips
+  // Offset between frames' ask cycles (?lag) — one streaming answer at a time.
+  const LAG = parseInt(params.get('lag') || '0', 10) || 0
+
+  let i = (parseInt(params.get('start') || '0', 10) || 0) % BEATS.length
+
+  const ask = (text?: string) =>
+    document.dispatchEvent(
+      text ? new CustomEvent('acw:ask', { detail: { text } }) : new CustomEvent('acw:ask')
+    )
+
+  // Click the quick-reply chip like a user would; the chips may still be
+  // animating in right after a reset, so retry briefly before falling back.
+  function pickChip(text: string, attempt = 0) {
+    const chip = [...document.querySelectorAll<HTMLButtonElement>('.acw-chip')].find((b) =>
+      b.textContent?.includes(text)
+    )
+    if (chip) chip.click()
+    else if (attempt < 5) window.setTimeout(() => pickChip(text, attempt + 1), 300)
+    else ask(text) // chips gone somehow — the mock still answers it
+  }
+
+  function cycle() {
+    const beat = BEATS[i]
+    i = (i + 1) % BEATS.length
+    if (beat.faq) pickChip(beat.text)
+    else ask(beat.text)
+    window.setTimeout(() => {
+      document.querySelector<HTMLButtonElement>('.acw-new')?.click()
+      window.setTimeout(cycle, GREETING_TIME)
+    }, beat.wait)
+  }
+
+  window.setTimeout(() => {
+    ask() // no text: open only — show the greeting and the chips first
+    // Opening focuses a control (header button on mobile, textarea on
+    // desktop) — drop the ring, this frame is a non-interactive showcase.
+    window.setTimeout(() => (document.activeElement as HTMLElement | null)?.blur?.(), 150)
+    window.setTimeout(cycle, GREETING_TIME + LAG)
+  }, OPEN_DELAY)
+</script>
+
+<style is:global>
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    /* Only visible for the moment before the sheet slides up. */
+    background: #0c0c10;
+  }
+  .site {
+    display: none;
+  }
+
+  /* Desktop mode: light host page, so the dark glass panel + backdrop blur
+     read against it. */
+  .is-desktop body {
+    background: #fafbfc;
+  }
+  /* The panel is open ~90% of the loop; the default modal dim would read as
+     "the site is gray". Keep the host page visibly white in the showcase. */
+  .is-desktop .acw-panel::backdrop {
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .is-desktop .site {
+    display: block;
+    padding: 1.5rem 2.25rem;
+    font-size: 16px;
+  }
+  .site .bar {
+    display: inline-block;
+    height: 0.8rem;
+    border-radius: 999px;
+    background: #e3e6ec;
+  }
+  .site .bar-lg {
+    height: 1.7rem;
+    border-radius: 10px;
+    background: #d4d9e2;
+  }
+  .site .dot {
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 8px;
+    background: #536dfe;
+  }
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+  }
+  .site-nav .spacer {
+    flex: 1;
+  }
+  .site-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin: 3.25rem 0 2.5rem;
+  }
+  .site-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+  .site .card {
+    height: 9.5rem;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid #e7eaf0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+</style>
