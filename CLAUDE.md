@@ -18,8 +18,9 @@ Two facts that shape everything:
 | `npm ci` | Install. Lockfile-only; `.npmrc` sets `ignore-scripts=true` — keep both. |
 | `npm run check` | `astro check` over `src/` + `demo/`. **The static verification loop.** Must stay at 0 errors. |
 | `npm run demo` | Dev server at `http://localhost:4322` against the mock SSE backend. |
+| `npm run build` | Vercel build of the **demo playground** — deploy-only, never part of verification. |
 
-There is **no test suite** and **no build step**. `astro build` fails by design (the demo's API routes are on-demand and no adapter is installed) — do not add an adapter or "fix" the build.
+There is **no test suite**. The published package has **no build step** — `src/` ships as TypeScript source. `npm run build` exists solely to deploy the demo to Vercel (`@astrojs/vercel` adapter in `astro.config.mjs`); it produces no package artifacts.
 
 ## How to verify a change
 
@@ -47,7 +48,7 @@ Entry flow: `AIChat.astro` renders static HTML → lazy-imports `controller.ts` 
 | `src/logger.ts` | Dev-only console wrapper, `[astro-chat-widget]`-prefixed. |
 | `src/styles/` | `tokens.css` (the `--acw-*` theme surface), `panel.css`, `messages.css`. |
 | `demo/pages/` | Playground pages + mock SSE backend (`api/chat.ts`, `api/feedback.ts`). |
-| `astro.config.mjs` | Demo-only config (`srcDir: ./demo`, port 4322). |
+| `astro.config.mjs` | Demo-only config (`srcDir: ./demo`, port 4322, Vercel adapter for demo deploys). |
 
 Every module carries a header comment explaining the *why*, not just the what. Those headers are the primary architecture documentation — read them before editing a file, and update them in the same commit when behaviour changes.
 
