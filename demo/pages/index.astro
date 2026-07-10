@@ -2,6 +2,11 @@
 /**
  * Demo playground — default theme, mock SSE backend (./api/chat.ts).
  * Run with `npm run demo`. Also the stage for README screenshots.
+ *
+ * The two frames are iframes of ./embed.astro — the live widget playing a
+ * scripted conversation on a loop (a "gif" that can't go stale): the desktop
+ * glass panel over a light skeleton page, and the mobile sheet rebranded via
+ * ?accent. The real interactive instance is the FAB in the corner.
  */
 import AIChat from '../../src/AIChat.astro'
 ---
@@ -18,28 +23,62 @@ import AIChat from '../../src/AIChat.astro'
   </head>
   <body>
     <main>
-      <p class="badge">demo playground</p>
       <h1>astro-chat-widget</h1>
-      <p class="tagline">
-        A self-contained AI chat widget for Astro sites — streaming SSE answers,
-        native <code>&lt;dialog&gt;</code>, no framework runtime.
-      </p>
       <p class="hint">
-        This page runs the widget in its default theme against a mock backend —
-        every answer streams over real SSE. Click the bubble ↘
+        Live demo, mock backend — try it yourself:
+        <a href="#chat" data-acw-open>the bubble ↘</a>
       </p>
-      <nav>
-        <a href="/themed">See it themed (one CSS variable) →</a>
-      </nav>
+
+      <div class="frames" aria-hidden="true">
+        <figure class="device device--desktop">
+          <div class="chrome">
+            <span class="chrome-dots"><i></i><i></i><i></i></span>
+            <span class="chrome-url">yoursite.dev</span>
+          </div>
+          <div class="chrome-viewport">
+            <iframe src="/embed?desktop" title="" tabindex="-1"></iframe>
+          </div>
+          <figcaption><code>&lt;AIChat endpoint="/api/chat" /&gt;</code></figcaption>
+        </figure>
+
+        <figure class="device device--phone">
+          <iframe src="/embed?accent=%23e31e24&start=2&lag=4800" title="" tabindex="-1"></iframe>
+          <figcaption><code>--acw-accent: #e31e24</code></figcaption>
+        </figure>
+      </div>
     </main>
 
     <AIChat
       endpoint="/api/chat"
       feedbackEndpoint="/api/feedback"
       quickReplies={[
-        { text: 'How do I theme it?', emoji: '🎨' },
-        { text: 'Show markdown rendering', emoji: '📝' },
-        { text: 'What about the iOS keyboard?', emoji: '📱' },
+        {
+          text: 'What can this widget do?',
+          answer: [
+            'Everything on this page ships as **one Astro component**:',
+            '',
+            '- Streaming answers over SSE, markdown rendered append-only',
+            '- Native `<dialog>` — modal on desktop, iOS-keyboard-proof sheet on mobile',
+            '- Theming via `--acw-*` tokens — one accent variable to rebrand',
+            '- FAQ chips like this one answer **instantly, without a backend call**',
+            '',
+            'Zero framework runtime, one dependency.',
+          ].join('\n'),
+          followUps: [
+            {
+              text: 'Does it need a backend?',
+              answer: [
+                'For AI answers, yes — any endpoint speaking the tiny SSE protocol from the README (`{chunk}` events, then `{done}`).',
+                '',
+                'But chips with a canned `answer` — like this one — render locally. A pure FAQ tree needs **no backend at all**.',
+              ].join('\n'),
+              followUps: [{ text: 'How do I theme it?' }],
+            },
+            { text: 'Show markdown rendering' },
+          ],
+        },
+        { text: 'How do I theme it?' },
+        { text: 'What about the iOS keyboard?' },
       ]}
     />
   </body>
@@ -62,46 +101,118 @@ import AIChat from '../../src/AIChat.astro'
       #0c0c10;
   }
   main {
-    max-width: 34rem;
-    padding: 2rem;
+    padding: 2.5rem 1.5rem;
     text-align: center;
   }
-  .badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 999px;
-    font-family: ui-monospace, monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.55);
-  }
   h1 {
-    margin: 1rem 0 0.5rem;
-    font-size: clamp(2rem, 6vw, 3rem);
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.7rem, 4vw, 2.3rem);
     letter-spacing: -0.02em;
-  }
-  .tagline {
-    font-size: 1.05rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.65);
+    color: #fff;
   }
   .hint {
-    margin-top: 2rem;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.45);
+    margin: 0 0 2rem;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.68);
+  }
+  /* Opens the chat via the widget's own data-acw-open hook (see AIChat.astro). */
+  .hint a {
+    color: #8ea2ff;
+    text-decoration-color: rgba(142, 162, 255, 0.45);
+    text-underline-offset: 3px;
+  }
+  .frames {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 2.5rem;
+  }
+  .device {
+    margin: 0;
+  }
+  .device figcaption {
+    margin-top: 0.9rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.55);
   }
   code {
     font-family: ui-monospace, monospace;
-    font-size: 0.9em;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.95em;
+    color: rgba(255, 255, 255, 0.75);
   }
-  nav {
-    margin-top: 0.75rem;
+  /* All frames are "gifs", not a second interactive instance — the corner
+     FAB is the live one. */
+  .device iframe {
+    pointer-events: none;
+    border: none;
+    display: block;
   }
-  nav a {
-    font-size: 0.9rem;
-    color: #8ea2ff;
+
+  /* Phone: the iframe viewport is under the widget's 768px breakpoint, so
+     the panel opens as the fullscreen mobile sheet. */
+  .device--phone iframe {
+    width: min(330px, 84vw);
+    height: 600px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 24px;
+    background: #0c0c10;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Desktop: a wide iframe (>768px → floating panel mode) scaled down into
+     a browser-window frame. */
+  .device--desktop .chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.55rem 0.9rem;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+  }
+  .chrome-dots {
+    display: inline-flex;
+    gap: 6px;
+  }
+  .chrome-dots i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .chrome-url {
+    flex: 1;
+    max-width: 16rem;
+    margin-inline: auto;
+    padding: 0.15rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.3);
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+  .chrome-viewport {
+    width: 750px;
+    height: 465px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  }
+  .device--desktop iframe {
+    width: 1000px;
+    height: 620px;
+    transform: scale(0.75);
+    transform-origin: top left;
+  }
+  /* On an actual phone the desktop frame can't fit readably — and the real
+     widget in the corner already gives the mobile experience first-hand. */
+  @media (max-width: 880px) {
+    .device--desktop {
+      display: none;
+    }
   }
 </style>
