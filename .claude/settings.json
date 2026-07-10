@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm ci)",
+      "Bash(npm run check)",
+      "Bash(npm run demo)",
+      "Bash(npx astro check:*)",
+      "Bash(npx osv-scanner:*)"
+    ]
+  }
+}
