@@ -63,6 +63,27 @@
   transform: scale(1.02);
 }
 
+/* Unread dot: an answer finished while the panel was closed (closing does not
+   abort the stream). The controller toggles .has-unread; opening clears it.
+   Empty content = decorative, invisible to the accessibility tree. */
+.acw-fab::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--_acw-danger);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+  transform: scale(0);
+  transition: transform var(--_acw-dur-med) var(--_acw-ease-spring);
+}
+
+.acw-fab.has-unread::after {
+  transform: scale(1);
+}
+
 /* Soft breathing glow */
 @keyframes acw-fab-glow {
   0%, 100% { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), 0 4px 18px var(--_acw-accent-glow-soft); }
@@ -78,6 +99,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .acw-fab { animation: none; }
+  .acw-fab::after { transition: none; }
 }
 
 /* FAB yields while the panel is open */
@@ -455,6 +477,20 @@ body.acw-scroll-locked {
 }
 
 /* ── A11y ───────────────────────────────────────────────────── */
+
+/* Visually-hidden live region (role=status in the shell). Completed answers
+   are announced here in one piece — a live region on the scroller itself
+   would make screen readers stutter through the stream word by word. */
+.acw-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .acw-fab:focus-visible,
 .acw-icon-btn:focus-visible,

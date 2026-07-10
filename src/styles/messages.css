@@ -23,6 +23,16 @@
   scrollbar-color: var(--_acw-scrollbar-thumb) transparent;
 }
 
+/* Bottom-anchor the conversation start (messenger convention): while the
+   content doesn't fill the scroller, the first child's auto margin pushes it
+   down to sit above the composer; once it overflows, the margin resolves to 0
+   and normal scrolling takes over. Deliberately NOT justify-content:flex-end
+   (breaks scrolling of overflowed content) and NOT column-reverse (fights the
+   append-only renderer and the scroll state machine). */
+.acw-messages > :first-child {
+  margin-top: auto;
+}
+
 .acw-messages::-webkit-scrollbar { width: 6px; }
 .acw-messages::-webkit-scrollbar-track { background: transparent; }
 .acw-messages::-webkit-scrollbar-thumb {
