@@ -1,0 +1,42 @@
+{
+  "name": "astro-chat-widget",
+  "version": "0.1.0",
+  "description": "Self-contained AI chat widget for Astro sites: streaming SSE answers, native <dialog>, iOS-keyboard-proof mobile sheet, zero framework runtime.",
+  "keywords": [
+    "astro",
+    "astro-component",
+    "withastro",
+    "chat",
+    "chatbot",
+    "ai",
+    "widget",
+    "sse",
+    "streaming"
+  ],
+  "license": "MIT",
+  "author": "eeegoloauq",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./AIChat.astro": "./src/AIChat.astro"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "astro check"
+  },
+  "dependencies": {
+    "streaming-markdown": "^0.2.15"
+  },
+  "peerDependencies": {
+    "astro": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "astro": "^6.4.6",
+    "typescript": "^5.9.3"
+  }
+}

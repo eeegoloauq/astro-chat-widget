@@ -1,0 +1,271 @@
+---
+/**
+ * AI Chat — shell component. One instance per page.
+ *
+ * Renders the FAB and the (closed) <dialog> panel as static HTML; the chat
+ * module (./controller.ts) is imported dynamically on first interaction so
+ * none of its JS lands in the initial bundle. The resolved configuration is
+ * serialized into data-acw-config — the module contains no copy and reads no
+ * environment.
+ *
+ * Entry points the module keeps working:
+ *   - the built-in FAB
+ *   - any element with a data-acw-open attribute
+ *   - the `acw:ask` CustomEvent on document ({ detail: { text } })
+ *   - the deep-link hash (default #chat), incl. same-document hashchange
+ *
+ * Host-page analytics: the widget dispatches `acw:open`, `acw:send` and
+ * `acw:feedback` CustomEvents on document.
+ */
+
+import type { ChatConfig, ChatStrings, LinkPrefix, QuickReply } from './types'
+import {
+  DEFAULT_STRINGS,
+  DEFAULT_STORAGE_KEY,
+  DEFAULT_FEEDBACK_STORAGE_KEY,
+  DEFAULT_DEEP_LINK_HASH,
+} from './defaults'
+
+import './styles/tokens.css'
+import './styles/panel.css'
+import './styles/messages.css'
+
+interface Props {
+  /** Chat endpoint (POST JSON → SSE). Relative URLs resolve against the page origin. */
+  endpoint: string
+  /** Optional thumbs-up/down endpoint. */
+  feedbackEndpoint?: string
+  /** Sent to the backend with every message. Default 'en'. */
+  lang?: string
+  /** Overrides merged over the English defaults. */
+  strings?: Partial<ChatStrings>
+  /** Starter chips under the greeting. Default: none. */
+  quickReplies?: QuickReply[]
+  /** Locale prefix rewriting for root-relative links in answers. */
+  linkPrefix?: LinkPrefix
+  /** URL hash that opens the chat (QR codes / emails). `false` disables. Default '#chat'. */
+  deepLinkHash?: string | false
+  /** localStorage keys — override to keep existing conversations when migrating. */
+  storageKey?: string
+  feedbackStorageKey?: string
+  /** Composer maxlength. Default 1000. */
+  maxLength?: number
+  class?: string
+}
+
+const {
+  endpoint,
+  feedbackEndpoint = '',
+  lang = 'en',
+  strings: stringOverrides = {},
+  quickReplies = [],
+  linkPrefix,
+  deepLinkHash = DEFAULT_DEEP_LINK_HASH,
+  storageKey = DEFAULT_STORAGE_KEY,
+  feedbackStorageKey = DEFAULT_FEEDBACK_STORAGE_KEY,
+  maxLength = 1000,
+  class: className,
+} = Astro.props
+
+const s: ChatStrings = { ...DEFAULT_STRINGS, ...stringOverrides }
+
+const config: ChatConfig = {
+  endpoint,
+  feedbackEndpoint,
+  lang,
+  strings: s,
+  quickReplies,
+  linkPrefix,
+  storageKey,
+  feedbackStorageKey,
+}
+---
+
+<div
+  class:list={['acw-root', className]}
+  data-acw-config={JSON.stringify(config)}
+  data-acw-hash={deepLinkHash || ''}
+>
+  <button class="acw-fab" type="button" data-acw-open aria-label={s.buttonLabel}>
+    <svg class="acw-fab-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 3l1.9 5.7a1 1 0 0 0 .63.63L20.2 11.2a.85.85 0 0 1 0 1.6l-5.67 1.87a1 1 0 0 0-.63.63L12 21l-1.9-5.7a1 1 0 0 0-.63-.63L3.8 12.8a.85.85 0 0 1 0-1.6l5.67-1.87a1 1 0 0 0 .63-.63L12 3z"/>
+      <path d="M19 2.6l.62 1.88a.6.6 0 0 0 .38.38l1.88.62a.32.32 0 0 1 0 .6l-1.88.62a.6.6 0 0 0-.38.38L19 8.96l-.62-1.88a.6.6 0 0 0-.38-.38L16.12 6.08a.32.32 0 0 1 0-.6L18 4.86a.6.6 0 0 0 .38-.38L19 2.6z" opacity=".85"/>
+    </svg>
+  </button>
+
+  <div class="acw-scrim" aria-hidden="true"></div>
+
+  <dialog class="acw-panel" aria-label={s.title}>
+    <header class="acw-header">
+      <h2 class="acw-title">{s.title}</h2>
+      <button class="acw-icon-btn acw-expand" type="button" aria-label={s.expand} title={s.expand}>
+        <svg class="acw-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <polyline points="9 21 3 21 3 15"></polyline>
+          <line x1="21" y1="3" x2="14" y2="10"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+        <svg class="acw-collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <polyline points="4 14 10 14 10 20"></polyline>
+          <polyline points="20 10 14 10 14 4"></polyline>
+          <line x1="14" y1="10" x2="21" y2="3"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+      </button>
+      <button class="acw-icon-btn acw-new" type="button" aria-label={s.newChat} title={s.newChat}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+      <button class="acw-icon-btn acw-close" type="button" aria-label={s.close} title={s.close}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+
+    <div class="acw-messages" aria-live="polite" aria-relevant="additions"></div>
+
+    <form class="acw-form">
+      <div class="acw-input-row">
+        <textarea
+          class="acw-input"
+          rows="1"
+          maxlength={maxLength}
+          placeholder={s.placeholder}
+          aria-label={s.placeholder}
+          autocomplete="off"
+        ></textarea>
+        <button type="submit" class="acw-send" aria-label={s.send} title={s.send}>
+          <svg class="acw-send-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+          </svg>
+          <svg class="acw-stop-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+          </svg>
+        </button>
+      </div>
+      <p class="acw-disclaimer">{s.disclaimer}</p>
+    </form>
+  </dialog>
+</div>
+
+<script>
+  import { logger } from './logger'
+  import type { ChatApi } from './controller'
+
+  let api: ChatApi | null = null
+  let loading: Promise<ChatApi | null> | null = null
+  let shellListeners: AbortController | null = null
+  let revealTimer: number | undefined
+
+  const getRoot = () => document.querySelector<HTMLElement>('.acw-root')
+
+  /** Load + initialize the chat module exactly once. */
+  function ensureChat(): Promise<ChatApi | null> {
+    if (api) return Promise.resolve(api)
+    if (!loading) {
+      loading = import('./controller')
+        .then((module) => {
+          const root = getRoot()
+          if (!root || api) return api
+          api = module.createChat(root)
+          return api
+        })
+        .catch((err) => {
+          logger.error('failed to load module:', err)
+          loading = null
+          return null
+        })
+    }
+    return loading
+  }
+
+  async function openChat() {
+    ;(await ensureChat())?.open()
+  }
+
+  // Programmatic entry point for host components (e.g. FAQ search → ask):
+  //   document.dispatchEvent(new CustomEvent('acw:ask', { detail: { text } }))
+  async function onAsk(e: Event) {
+    const text = (e as CustomEvent<{ text?: string }>).detail?.text?.trim()
+    if (!text) return void openChat()
+    ;(await ensureChat())?.ask(text)
+  }
+
+  // One delegated listener covers the FAB and every external trigger.
+  function onDocumentClick(e: Event) {
+    const target = e.target as HTMLElement
+    const trigger = target.closest('[data-acw-open]')
+    if (!trigger) return
+    e.preventDefault()
+    void openChat()
+  }
+
+  // Prefetch the module on hover so the first open feels instant.
+  function onDocumentHover(e: Event) {
+    const target = e.target as HTMLElement
+    if (!target.closest('[data-acw-open]')) return
+    void ensureChat()
+  }
+
+  // Deep link: external entry points (QR / email) carry intent in the URL
+  // hash. Strip it first (one-time intent, replaceState emits no hashchange),
+  // then open.
+  function handleDeepLink() {
+    const hash = getRoot()?.dataset.acwHash
+    if (!hash || window.location.hash !== hash) return
+    history.replaceState(null, '', window.location.pathname + window.location.search)
+    void openChat()
+  }
+
+  // FAB reveal is deferred so it never competes with page paint.
+  function scheduleReveal() {
+    const reveal = () => {
+      getRoot()?.querySelector('.acw-fab')?.classList.add('is-ready')
+    }
+    const idle = window.requestIdleCallback?.bind(window)
+    if (idle) {
+      idle(() => { revealTimer = window.setTimeout(reveal, 2000) })
+    } else {
+      revealTimer = window.setTimeout(reveal, 2500)
+    }
+  }
+
+  function setup() {
+    shellListeners = new AbortController()
+    const { signal } = shellListeners
+    document.addEventListener('click', onDocumentClick, { capture: true, signal })
+    document.addEventListener('mouseover', onDocumentHover, { capture: true, signal })
+    document.addEventListener('acw:ask', onAsk, { signal })
+    window.addEventListener('hashchange', handleDeepLink, { signal })
+    scheduleReveal()
+    handleDeepLink()
+  }
+
+  function teardown() {
+    clearTimeout(revealTimer)
+    shellListeners?.abort()
+    shellListeners = null
+    api?.dispose()
+    api = null
+    loading = null
+  }
+
+  // Init on plain page load; the astro:* listeners cover sites with View
+  // Transitions enabled — page-load re-inits, before-swap tears the old
+  // instance down. Both paths are safe on MPA sites without <ClientRouter />.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup, { once: true })
+  } else {
+    setup()
+  }
+  document.addEventListener('astro:page-load', () => {
+    teardown()
+    setup()
+  })
+  document.addEventListener('astro:before-swap', teardown)
+</script>
