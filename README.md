@@ -4,11 +4,15 @@ A self-contained AI chat widget for [Astro](https://astro.build) sites. Floating
 
 Built for content/marketing sites that have an AI backend (RAG, support bot) and want a production-quality chat UI without shipping a component framework for it.
 
+![A scripted conversation in the widget: the FAB opens a dark glass panel over a light host page and a markdown answer streams in word by word](docs/demo.webp)
+
+<sub>The self-running showcase from `npm run demo` — the widget answering from the mock SSE backend.</sub>
+
 ## Features
 
 - **Zero JS in the initial bundle** — the shell renders static HTML; the chat module lazy-loads on first interaction (and prefetches on FAB hover).
 - **Streaming markdown** — append-only parser (no re-render flicker), word-by-word reveal at an adaptive cadence, honest auto-scroll that never fights the user.
-- **iOS keyboard that actually works.** `dialog.showModal()` is top-layer, and iOS Safari clips the top layer to the visual viewport when the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)) — the page bleeds through above the header and below the composer. On mobile the widget opens the dialog **non-modally** as a plain `position:fixed` sheet and rides the keyboard via `visualViewport` tracking — the approach production messengers use. Desktop keeps `showModal()` and gets Esc, focus containment and `::backdrop` for free.
+- **iOS keyboard that actually works.** iOS Safari clips the `<dialog>` top layer to the visual viewport while the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)), so on mobile the widget opens the dialog **non-modally** — a `position:fixed` sheet riding the keyboard via `visualViewport` tracking, the approach production messengers use. Desktop keeps `showModal()` and gets Esc, focus containment and `::backdrop` for free.
 - **Hardened rendering** — DOM built via `createElement` only; unsafe URL schemes rejected; `<img>` in answers stripped (a prompt-injected backend must not fire outbound requests); `target=_blank` + `noopener` on external links; HTTPS enforced for endpoints in production builds.
 - **Single conversation** persisted in `localStorage` (30-day expiry, 50-message cap), with per-message 👍/👎 feedback.
 - Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, Stop-mid-stream that keeps the partial answer.
@@ -130,7 +134,11 @@ The widget reads `--acw-*` custom properties, **set on `:root`**. Every color de
 }
 ```
 
-The default look is a dark glass panel that works on any page. Full token list:
+The default look is a dark glass panel that works on any page. This is the mobile sheet running exactly the override above:
+
+![The mobile sheet re-branded with a single --acw-accent override](docs/theming.webp)
+
+Full token list:
 
 | Token | Purpose |
 | --- | --- |

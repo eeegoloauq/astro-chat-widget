@@ -170,6 +170,9 @@ import AIChat from '../../src/AIChat.astro'
   body {
     margin: 0;
     min-height: 100dvh;
+    /* The widget inherits the host page's font; a real host always sets one.
+       Without this the frames render in the browser's default serif. */
+    font-family: ui-sans-serif, system-ui, sans-serif;
     /* Only visible for the moment before the sheet slides up. */
     background: #0c0c10;
   }
