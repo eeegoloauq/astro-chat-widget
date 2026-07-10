@@ -4,7 +4,7 @@ A self-contained AI chat widget for [Astro](https://astro.build) sites. Floating
 
 Built for content/marketing sites that have an AI backend (RAG, support bot) and want a production-quality chat UI without shipping a component framework for it.
 
-![A scripted conversation in the widget: the FAB opens a dark glass panel over a light host page and a markdown answer streams in word by word](docs/demo.webp)
+![A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word](docs/demo.webp)
 
 <sub>The self-running showcase from `npm run demo` — the widget answering from the mock SSE backend.</sub>
 
