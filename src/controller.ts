@@ -22,7 +22,7 @@ import {
   addErrorNote, addSystemNote, showQuickReplies, hideQuickReplies,
 } from './ui'
 import type { FeedbackHandler } from './ui'
-import type { ChatConfig } from './types'
+import type { ChatConfig, QuickReply } from './types'
 
 export interface ChatApi {
   open(): void
@@ -195,8 +195,7 @@ export function createChat(root: HTMLElement): ChatApi {
         // the moment, a replayed conversation shouldn't resurrect them.
         if (result.suggestions?.length) {
           showQuickReplies(
-            scroller, strings.quickLabel,
-            (text) => void send(text),
+            scroller, strings.quickLabel, pickReply,
             result.suggestions.map((text) => ({ text }))
           )
         }
@@ -252,6 +251,43 @@ export function createChat(root: HTMLElement): ChatApi {
     await request(trimmed)
   }
 
+  /** FAQ chip (a QuickReply with `answer`): canned markdown rendered locally —
+   *  no request, no typing indicator, nothing to wait for. Same message shape
+   *  as a backend answer, so persistence and replay need no special casing. */
+  async function answerLocally(reply: QuickReply): Promise<void> {
+    if (streaming || input.disabled) return
+    const convo = conversation
+    hideQuickReplies(scroller)
+    emit('acw:send', { text: reply.text, local: true })
+    addUserMessage(scroller, reply.text)
+    // Persist both sides before the visual reveal (same rule as the greeting).
+    convo.messages.push({ id: newMessageId(), role: 'user', content: reply.text, ts: Date.now() })
+    const id = newMessageId()
+    convo.messages.push({ id, role: 'assistant', content: reply.answer!, ts: Date.now() })
+    store.save(convo)
+
+    const message = addAssistantMessage(scroller, strings)
+    const content = message.startContent() // swap the indicator out immediately
+    const renderer = createStreamingRenderer(content, scroller, { speedFactor: 0.5, linkPrefix })
+    renderer.update(reply.answer!)
+    renderer.finish()
+    await renderer.done
+    if (convo !== conversation) {
+      message.row.remove()
+      return
+    }
+    attachMessageActions(message.row, id, strings, store, handleFeedback)
+    if (reply.followUps?.length) {
+      showQuickReplies(scroller, strings.quickLabel, pickReply, reply.followUps)
+    }
+  }
+
+  /** Chip pick — the one branch point between FAQ entries and the backend. */
+  function pickReply(reply: QuickReply): void {
+    if (reply.answer) void answerLocally(reply)
+    else void send(reply.text)
+  }
+
   // ── Greeting / first render ──────────────────────────────────────────────
 
   async function streamGreeting(): Promise<void> {
@@ -278,7 +314,7 @@ export function createChat(root: HTMLElement): ChatApi {
     }
     // A programmatic ask() may have landed while the greeting streamed
     if (!hasUserMessages()) {
-      showQuickReplies(scroller, strings.quickLabel, (text) => void send(text), config.quickReplies)
+      showQuickReplies(scroller, strings.quickLabel, pickReply, config.quickReplies)
     }
   }
 
@@ -288,7 +324,7 @@ export function createChat(root: HTMLElement): ChatApi {
     if (conversation.messages.length > 0) {
       replayConversation(scroller, conversation, strings, store, handleFeedback, linkPrefix)
       if (!hasUserMessages()) {
-        showQuickReplies(scroller, strings.quickLabel, (text) => void send(text), config.quickReplies)
+        showQuickReplies(scroller, strings.quickLabel, pickReply, config.quickReplies)
       }
     } else {
       void streamGreeting()

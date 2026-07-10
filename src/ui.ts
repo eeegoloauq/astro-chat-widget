@@ -239,13 +239,16 @@ export function addSystemNote(scroller: HTMLElement, text: string): HTMLElement 
 }
 
 // ── Quick replies (appended to the message flow) ───────────────────────────
-// Two sources, one widget: the configured starter chips under the greeting,
-// and backend follow-up suggestions from the SSE done-event after an answer.
+// Three sources, one widget: the configured starter chips under the greeting,
+// backend follow-up suggestions from the SSE done-event after an answer, and
+// `followUps` of a local FAQ entry (a chip with a canned `answer`). The pick
+// handler receives the full QuickReply — the controller decides whether it
+// answers locally or goes to the backend.
 
 export function showQuickReplies(
   scroller: HTMLElement,
   label: string,
-  onPick: (text: string) => void,
+  onPick: (reply: QuickReply) => void,
   items: QuickReply[]
 ): void {
   hideQuickReplies(scroller)
@@ -261,7 +264,7 @@ export function showQuickReplies(
     chip.style.transitionDelay = `${index * 50}ms`
     if (reply.emoji) chip.appendChild(el('span', 'acw-chip-emoji', reply.emoji))
     chip.appendChild(el('span', '', reply.text))
-    chip.addEventListener('click', () => onPick(reply.text), { once: true })
+    chip.addEventListener('click', () => onPick(reply), { once: true })
     container.appendChild(chip)
   })
 

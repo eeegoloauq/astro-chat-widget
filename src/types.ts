@@ -5,10 +5,17 @@
  */
 
 /** A quick-reply chip. Starter chips come from config; follow-up chips from
- *  the backend's SSE done-event. */
+ *  the backend's SSE done-event. A chip with `answer` is a local FAQ entry:
+ *  picking it renders the canned markdown instantly — no backend round trip —
+ *  and offers its `followUps` as the next chips (an FAQ tree). Chips without
+ *  `answer` send their text to the backend as a normal message. */
 export interface QuickReply {
   text: string
   emoji?: string
+  /** Canned markdown answer — makes the chip a local FAQ entry. */
+  answer?: string
+  /** Chips offered under the canned answer. */
+  followUps?: QuickReply[]
 }
 
 /** Every user-facing string in the widget. All optional at the prop level —
