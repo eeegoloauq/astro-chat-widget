@@ -26,7 +26,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "check": "astro check"
+    "check": "astro check",
+    "demo": "astro dev"
   },
   "dependencies": {
     "streaming-markdown": "^0.2.15"

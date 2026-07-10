@@ -160,6 +160,15 @@ The default look is a dark glass panel that works on any page. Full token list:
   Chrome ≥108 defaults to `resizes-visual` (keyboard overlays the page), which would cover the composer. `resizes-content` makes the layout viewport shrink. iOS ignores this attribute entirely — that's what the `visualViewport` tracking is for.
 - The widget uses `color-mix()`, `:has()`, `@starting-style` and `transition-behavior: allow-discrete` — evergreen browsers from ~2024 onward. On older browsers the panel still opens and streams; only open/close animations degrade.
 
+## Demo playground
+
+```sh
+npm install
+npm run demo   # → http://localhost:4322
+```
+
+Runs the widget in its default theme against a mock SSE backend (`demo/pages/api/chat.ts`) — canned answers about theming, markdown and the iOS keyboard, streamed word by word. [`/themed`](http://localhost:4322/themed) shows the same widget rebranded with a single `--acw-accent` override. The demo is dev-only and is not part of the published package.
+
 ## Debugging the iOS keyboard
 
 Append `#kbdebug` to the URL on a real device: a monospace readout overlays the panel with live `visualViewport` numbers. Desktop DevTools cannot reproduce the iOS keyboard behaviour; real-device numbers are the only ground truth.

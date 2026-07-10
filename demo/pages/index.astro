@@ -1,0 +1,107 @@
+---
+/**
+ * Demo playground — default theme, mock SSE backend (./api/chat.ts).
+ * Run with `npm run demo`. Also the stage for README screenshots.
+ */
+import AIChat from '../../src/AIChat.astro'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128172;</text></svg>" />
+    <title>astro-chat-widget — demo</title>
+  </head>
+  <body>
+    <main>
+      <p class="badge">demo playground</p>
+      <h1>astro-chat-widget</h1>
+      <p class="tagline">
+        A self-contained AI chat widget for Astro sites — streaming SSE answers,
+        native <code>&lt;dialog&gt;</code>, no framework runtime.
+      </p>
+      <p class="hint">
+        This page runs the widget in its default theme against a mock backend —
+        every answer streams over real SSE. Click the bubble ↘
+      </p>
+      <nav>
+        <a href="/themed">See it themed (one CSS variable) →</a>
+      </nav>
+    </main>
+
+    <AIChat
+      endpoint="/api/chat"
+      feedbackEndpoint="/api/feedback"
+      quickReplies={[
+        { text: 'How do I theme it?', emoji: '🎨' },
+        { text: 'Show markdown rendering', emoji: '📝' },
+        { text: 'What about the iOS keyboard?', emoji: '📱' },
+      ]}
+    />
+  </body>
+</html>
+
+<style>
+  :root {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: rgba(255, 255, 255, 0.9);
+    background:
+      radial-gradient(60rem 40rem at 80% -10%, rgba(83, 109, 254, 0.18), transparent 60%),
+      radial-gradient(50rem 35rem at -10% 110%, rgba(83, 109, 254, 0.1), transparent 60%),
+      #0c0c10;
+  }
+  main {
+    max-width: 34rem;
+    padding: 2rem;
+    text-align: center;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  h1 {
+    margin: 1rem 0 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    letter-spacing: -0.02em;
+  }
+  .tagline {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.65);
+  }
+  .hint {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+  code {
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.8);
+  }
+  nav {
+    margin-top: 0.75rem;
+  }
+  nav a {
+    font-size: 0.9rem;
+    color: #8ea2ff;
+  }
+</style>
