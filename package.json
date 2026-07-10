@@ -15,6 +15,12 @@
   ],
   "license": "MIT",
   "author": "eeegoloauq",
+  "homepage": "https://chat-widget.egor-solovev.dev/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eeegoloauq/astro-chat-widget.git"
+  },
+  "bugs": "https://github.com/eeegoloauq/astro-chat-widget/issues",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
