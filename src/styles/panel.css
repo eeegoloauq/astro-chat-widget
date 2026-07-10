@@ -1,0 +1,465 @@
+/* ============================================================
+   Chat shell: FAB, <dialog> panel, header, chips, composer.
+
+   The panel is a native <dialog>, shown with showModal() on
+   desktop:
+     - top layer → no z-index coordination with the host page
+     - ::backdrop, Esc, focus containment come for free
+     - open/close animation is @starting-style + allow-discrete,
+       zero JS timing
+   Closed state is display:none, so the "no backdrop-filter while
+   closed" Safari-iOS rule (blur on a hidden fixed layer paints a
+   white bar on iOS) holds by construction.
+   ============================================================ */
+
+/* ── Floating action button ─────────────────────────────────── */
+
+/* Accent gradient orb — pure CSS, no image assets. Opaque gradient,
+   so no backdrop-filter (and no Safari two-stage dance). */
+.acw-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 32px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: radial-gradient(circle at 32% 28%, var(--_acw-accent-soft), var(--_acw-accent) 55%, var(--_acw-accent-strong));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35),
+              0 4px 18px var(--_acw-accent-glow-soft);
+  color: var(--_acw-on-accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--_acw-z-fab);
+  animation: acw-fab-glow 3.5s ease-in-out infinite;
+
+  /* Hidden until the shell reveals it after page paint */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px) scale(.9);
+  pointer-events: none;
+  transition: opacity var(--_acw-dur-med) var(--_acw-ease),
+              visibility var(--_acw-dur-med) var(--_acw-ease),
+              transform var(--_acw-dur-med) var(--_acw-ease-spring);
+}
+
+.acw-fab.is-ready {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.acw-fab:hover {
+  transform: scale(1.07);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35),
+              0 6px 26px var(--_acw-accent-glow-strong);
+  animation-play-state: paused;
+}
+
+.acw-fab:active {
+  transform: scale(1.02);
+}
+
+/* Soft breathing glow */
+@keyframes acw-fab-glow {
+  0%, 100% { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), 0 4px 18px var(--_acw-accent-glow-soft); }
+  50% { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), 0 4px 26px var(--_acw-accent-glow); }
+}
+
+.acw-fab-icon {
+  width: 26px;
+  height: 26px;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .25));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acw-fab { animation: none; }
+}
+
+/* FAB yields while the panel is open */
+.acw-root:has(.acw-panel[open]) .acw-fab {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Desktop: page behind the floating widget doesn't scroll. */
+body:has(.acw-panel[open]) {
+  overflow: hidden;
+}
+
+/* Mobile scroll lock. overflow:hidden on html+body; the panel is
+   position:fixed = viewport-relative, so the page's frozen scroll underneath
+   never moves it; the panel tracks the visual viewport itself (--acw-vvtop)
+   to ride the keyboard.
+   Also darken the base: host pages are usually light, so if anything ever
+   peeks behind, it shows the sheet colour, not a white flash. */
+@media (max-width: 768px) {
+  html:has(.acw-panel[open]),
+  body:has(.acw-panel[open]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--_acw-surface-solid);
+  }
+}
+
+/* panel.ts adds this on open and sets body.top = -scrollY inline: resets the
+   document scroll to 0 so the fixed panel/scrim anchor to the viewport instead
+   of being dragged off by a scrolled page. Restored (with position) on close. */
+body.acw-scroll-locked {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+
+/* ── Panel (<dialog>) ───────────────────────────────────────── */
+
+.acw-panel {
+  /* Reset UA dialog chrome */
+  padding: 0;
+  border: none;
+  max-width: none;
+  max-height: none;
+
+  /* Closed = display:none (the UA default our flex must not override —
+     otherwise the closed dialog sits in layout after the footer).
+     allow-discrete keeps display alive for the length of the exit
+     transition, so the close still animates. */
+  display: none;
+  flex-direction: column;
+  overflow: hidden; /* the messages list is the only scroller; clip to radius */
+  font-family: var(--_acw-font);
+  color: var(--_acw-text-strong);
+  overscroll-behavior: contain;
+
+  opacity: 0;
+  translate: 0 14px;
+  /* Entry/exit motion rides `translate`; the mobile keyboard tracking rides
+     `transform: translateY(--acw-vvtop)` — separate properties that compose
+     cleanly, and `transform` is deliberately NOT in the transition list below
+     so it tracks the keyboard 1:1 without lag. */
+  transition: opacity var(--_acw-dur-med) var(--_acw-ease),
+              translate var(--_acw-dur-med) var(--_acw-ease-spring),
+              display var(--_acw-dur-med) allow-discrete,
+              overlay var(--_acw-dur-med) allow-discrete;
+}
+
+.acw-panel[open] {
+  display: flex;
+  opacity: 1;
+  translate: 0 0;
+}
+
+@starting-style {
+  .acw-panel[open] {
+    opacity: 0;
+    translate: 0 14px;
+  }
+}
+
+/* ::backdrop can't reliably read inherited custom properties everywhere —
+   literal values on purpose. */
+.acw-panel::backdrop {
+  background: rgba(0, 0, 0, .2);
+  transition: opacity .3s ease,
+              display .3s allow-discrete,
+              overlay .3s allow-discrete;
+  opacity: 0;
+}
+
+.acw-panel[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .acw-panel[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Desktop: compact floating panel, bottom-right — a widget, not an app.
+   Fixed size (no grow-on-answer: mid-read layout shift is an anti-pattern);
+   long answers scroll inside. */
+@media (min-width: 769px) {
+  .acw-panel {
+    margin: auto 24px 24px auto;
+    width: min(420px, calc(100vw - 48px));
+    height: min(660px, calc(100dvh - 48px));
+    border: 1px solid var(--_acw-border);
+    border-radius: var(--_acw-radius-xl);
+    background: var(--_acw-surface);
+    backdrop-filter: var(--_acw-blur);
+    -webkit-backdrop-filter: var(--_acw-blur);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .35);
+    transition: opacity var(--_acw-dur-med) var(--_acw-ease),
+                translate var(--_acw-dur-med) var(--_acw-ease-spring),
+                width var(--_acw-dur-med) var(--_acw-ease-spring),
+                height var(--_acw-dur-med) var(--_acw-ease-spring),
+                display var(--_acw-dur-med) allow-discrete,
+                overlay var(--_acw-dur-med) allow-discrete;
+  }
+
+  /* Wide mode: reading view for long answers */
+  .acw-panel.is-wide {
+    width: min(720px, calc(100vw - 48px));
+    height: calc(100dvh - 48px);
+  }
+}
+
+/* Mobile: fullscreen opaque sheet. Opened NON-modally (panel.ts dialog.show()),
+   so it is a PLAIN position:fixed element, NOT top-layer. That is the iOS fix:
+   iOS Safari clips a showModal() top-layer dialog (box + ::backdrop) to the
+   visual viewport under the software keyboard, bleeding the page in above the
+   header and below the composer (WebKit #300965 / #303167). A normal fixed
+   element is anchored to the layout viewport, covers the whole screen, and can't
+   be clipped — the model every production messenger ships.
+
+   The panel TRACKS the visual viewport (panel.ts): height = --acw-vvh
+   (vv.height, so its bottom sits on the keyboard top and the composer, a bottom
+   flex child, parks above the keyboard) and transform = translateY(--acw-vvtop)
+   (vv.offsetTop, so it rides iOS's focus-scroll and stays glued to the visible
+   band). The header rides the visible top — the deliberate tradeoff for
+   smoothness (Telegram / WhatsApp do the same). It enters by rising from the
+   bottom like a native sheet. A non-modal dialog has no ::backdrop, so
+   .acw-scrim (below) is the opaque layer behind it — together with the opaque
+   panel, the ≤1-frame viewport lag shows solid colour, never the page. */
+@media (max-width: 768px) {
+  .acw-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--acw-vvh, 100dvh); /* JS tracks the visual viewport; 100dvh is only the pre-JS fallback. NOT transitioned — it tracks the keyboard 1:1 */
+    margin: 0;
+    z-index: var(--_acw-z-panel); /* above the scrim; desktop uses the modal top layer instead */
+    transform: translateY(var(--acw-vvtop, 0px)); /* ride iOS focus-scroll so the sheet stays over the visible band. NOT transitioned */
+    background: var(--_acw-surface-solid);
+    translate: 0 100%; /* closed: parked just below the viewport */
+  }
+
+  @starting-style {
+    .acw-panel[open] { translate: 0 100%; }
+  }
+}
+
+/* ── Mobile scrim ───────────────────────────────────────────────
+   Opaque layer BEHIND the non-modal sheet. The panel is sized to the visual
+   viewport, so during the ≤1-frame lag at the tail of the keyboard animation the
+   panel bottom can trail the keyboard top; the scrim (which extends below the
+   panel and rides the same --acw-vvtop) guarantees that gap shows solid surface
+   colour, never the page. Desktop uses the modal ::backdrop, so this is
+   mobile-only. Solid colour + visibility toggle, NO backdrop-filter (blur on a
+   hidden fixed layer paints a white bar on Safari iOS). */
+.acw-scrim {
+  position: fixed;
+  /* Deliberately oversized (−100vh → +200vh): on-device an inset:0 scrim still
+     bared the page top+bottom during the iOS viewport shift; extending it well
+     past the screen guarantees the opaque layer always covers, whatever iOS does. */
+  top: -100vh;
+  left: 0;
+  right: 0;
+  height: 300vh;
+  z-index: calc(var(--_acw-z-panel) - 1);
+  background: var(--_acw-surface-solid);
+  transform: translateY(var(--acw-vvtop, 0px)); /* track the panel's visual-viewport offset so the scrim stays centred */
+  opacity: 0;
+  visibility: hidden; /* also makes it non-interactive when closed; visible → captures taps so they don't leak to the page behind a gap */
+  transition: opacity var(--_acw-dur-med) var(--_acw-ease),
+              visibility var(--_acw-dur-med) var(--_acw-ease);
+}
+
+@media (max-width: 768px) {
+  .acw-root:has(.acw-panel[open]) .acw-scrim {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+
+.acw-header {
+  display: flex;
+  align-items: center;
+  gap: var(--_acw-space-xs);
+  padding: 10px var(--_acw-space-sm);
+  border-bottom: 1px solid var(--_acw-border-subtle);
+  flex-shrink: 0;
+}
+
+.acw-title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--_acw-font-size);
+  font-weight: 600;
+  color: var(--_acw-text-strong);
+  letter-spacing: .01em;
+}
+
+.acw-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--_acw-radius-sm);
+  background: transparent;
+  color: var(--_acw-text-muted);
+  cursor: pointer;
+  transition: background var(--_acw-dur-fast) var(--_acw-ease),
+              color var(--_acw-dur-fast) var(--_acw-ease);
+}
+
+.acw-icon-btn:hover {
+  background: var(--_acw-raise);
+  color: var(--_acw-text-strong);
+}
+
+/* Expand toggle: desktop-only, icon swaps with the wide state */
+.acw-collapse-icon { display: none; }
+.acw-panel.is-wide .acw-expand-icon { display: none; }
+.acw-panel.is-wide .acw-collapse-icon { display: block; }
+
+@media (max-width: 768px) {
+  .acw-expand { display: none; } /* mobile is already fullscreen */
+}
+
+/* ── Quick-reply chips (in the message flow, under the greeting) ── */
+
+.acw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--_acw-space-xs);
+  margin-top: 2px;
+}
+
+.acw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border: 1px solid var(--_acw-border);
+  border-radius: 999px;
+  background: var(--_acw-raise-subtle);
+  color: var(--_acw-text);
+  font-family: inherit;
+  font-size: var(--_acw-font-size-sm);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--_acw-dur-med) var(--_acw-ease),
+              transform var(--_acw-dur-med) var(--_acw-ease),
+              border-color var(--_acw-dur-fast) var(--_acw-ease),
+              background var(--_acw-dur-fast) var(--_acw-ease);
+}
+
+.acw-chips.is-visible .acw-chip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.acw-chip:hover {
+  border-color: var(--_acw-border-strong);
+  background: var(--_acw-raise);
+}
+
+.acw-chip-emoji {
+  font-size: var(--_acw-font-size-sm);
+}
+
+/* ── Composer ───────────────────────────────────────────────── */
+
+.acw-form {
+  flex-shrink: 0;
+  padding: var(--_acw-space-xs) var(--_acw-space-sm);
+  padding-bottom: max(var(--_acw-space-xs), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--_acw-border-subtle);
+  margin: 0;
+}
+
+.acw-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--_acw-space-xs);
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--_acw-border);
+  border-radius: var(--_acw-radius-lg);
+  background: var(--_acw-input-bg);
+  transition: border-color var(--_acw-dur-fast) var(--_acw-ease);
+}
+
+/* Focus: brighten, don't shout — the send button already carries the accent */
+.acw-input-row:focus-within {
+  border-color: var(--_acw-border-strong);
+  background: var(--_acw-input-bg-focus);
+}
+
+.acw-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--_acw-text-strong);
+  font-family: inherit;
+  font-size: 16px; /* not a token: <16px triggers iOS focus-zoom */
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  max-height: 160px; /* keep in sync with MAX_INPUT_HEIGHT in panel.ts */
+  padding: 6px 0;
+}
+
+.acw-input::placeholder {
+  color: var(--_acw-text-placeholder);
+}
+
+.acw-input:disabled {
+  color: var(--_acw-text-faint);
+}
+
+.acw-send {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--_acw-accent);
+  color: var(--_acw-on-accent);
+  cursor: pointer;
+  transition: background var(--_acw-dur-fast) var(--_acw-ease),
+              transform var(--_acw-dur-fast) var(--_acw-ease);
+}
+
+.acw-send:hover:not(:disabled) { transform: scale(1.06); }
+
+.acw-send:hover { background: var(--_acw-accent-hover); }
+.acw-send:disabled { background: var(--_acw-accent-disabled); cursor: default; }
+
+/* Send ↔ Stop: one button, two icons, state = .is-streaming */
+.acw-stop-icon { display: none; }
+.acw-send.is-streaming .acw-send-icon { display: none; }
+.acw-send.is-streaming .acw-stop-icon { display: block; }
+
+.acw-disclaimer {
+  margin: var(--_acw-space-xs) 0 0;
+  font-size: var(--_acw-font-size-xs);
+  line-height: 1.4;
+  color: var(--_acw-text-faint);
+  text-align: center;
+}
+
+/* ── A11y ───────────────────────────────────────────────────── */
+
+.acw-fab:focus-visible,
+.acw-icon-btn:focus-visible,
+.acw-chip:focus-visible,
+.acw-send:focus-visible {
+  outline: 2px solid var(--_acw-accent-soft);
+  outline-offset: 2px;
+}
