@@ -1,6 +1,6 @@
 {
   "name": "astro-chat-widget",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Self-contained AI chat widget for Astro sites: streaming SSE answers, native <dialog>, iOS-keyboard-proof mobile sheet, zero framework runtime.",
   "keywords": [
     "astro",
