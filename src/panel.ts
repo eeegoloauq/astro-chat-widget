@@ -1,24 +1,37 @@
 /**
  * Panel behaviour around the native <dialog>.
  *
- * DESKTOP opens the dialog with showModal() — the modal top layer gives us,
- * for free, what a hand-rolled overlay needs: no z-index ladder, Esc-to-close,
- * focus containment, ::backdrop, inert page behind. There's no keyboard there.
+ * The dialog ALWAYS opens NON-modally (show(), never showModal()) — a chat
+ * widget is a companion to the page, not a modal over it.
  *
- * MOBILE opens it with show() (NON-modal) instead. This is the whole iOS fix:
- * a showModal() dialog lives in the top layer, and iOS Safari clips top-layer
- * content (box + ::backdrop) to the *visual* viewport when the software
- * keyboard is up — so the inert page bleeds through both above the header and
- * below the composer, no matter how opaque or full-height we make the sheet
- * (WebKit #300965 / #303167). Every production messenger (Telegram, WhatsApp,
- * Intercom) avoids top-layer for exactly this and ships a plain position:fixed
- * sheet. So on mobile the dialog is a normal fixed element (styles/panel.css),
- * and we size the keyboard band ourselves.
+ * DESKTOP: Intercom-style floating panel. The page behind stays scrollable
+ * and interactive — the point of a site assistant is chatting WHILE browsing
+ * (ask about the product you're looking at). So: no backdrop, no scroll lock,
+ * no focus trap, and clicks on the page do NOT close the chat (users copy
+ * page text into the composer). What showModal() used to give for free is
+ * done by hand: Esc closes while focus is inside the panel, closing hands
+ * focus back to the FAB, and stacking is an explicit z-index (--acw-z-panel)
+ * instead of the top layer.
  *
- * Open/close animation is pure CSS (@starting-style + allow-discrete) for both.
+ * MOBILE: non-modal is additionally the whole iOS fix: a showModal() dialog
+ * lives in the top layer, and iOS Safari clips top-layer content (box +
+ * ::backdrop) to the *visual* viewport when the software keyboard is up — so
+ * the inert page bleeds through both above the header and below the composer,
+ * no matter how opaque or full-height we make the sheet (WebKit #300965 /
+ * #303167). Every production messenger (Telegram, WhatsApp, Intercom) avoids
+ * top-layer for exactly this and ships a plain position:fixed sheet. So the
+ * dialog is a normal fixed element (styles/panel.css), and we size the
+ * keyboard band ourselves.
+ *
+ * Open state is remembered per tab (sessionStorage via openState.ts): the
+ * shell reopens the panel after a same-tab navigation (see AIChat.astro), so
+ * the chat travels with the user across pages.
+ *
+ * Open/close animation is pure CSS (@starting-style + allow-discrete).
  *
  * What's left for JS:
- *   - backdrop click → close (desktop; click target === dialog means outside)
+ *   - Esc → close while focus is inside the panel (non-modal dialogs have no
+ *     built-in cancel behaviour), focus back to the FAB on close
  *   - textarea autosize + Enter-to-send (desktop)
  *   - iOS keyboard (mobile): track the visual viewport — RIDE the keyboard, don't
  *     fight it. Every visualViewport frame we set `--acw-vvh` = vv.height
@@ -35,12 +48,19 @@
  *     animation — the opaque panel/scrim mask it.
  */
 
+import { rememberOpen } from './openState'
+
 const MAX_INPUT_HEIGHT = 160
 
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches
 
+export interface OpenOptions {
+  /** Reopening after a page navigation: no entry animation, no focus steal. */
+  restore?: boolean
+}
+
 export interface Panel {
-  open(): void
+  open(opts?: OpenOptions): void
   close(): void
   isOpen(): boolean
   dispose(): void
@@ -49,10 +69,15 @@ export interface Panel {
 export function createPanel(
   dialog: HTMLDialogElement,
   input: HTMLTextAreaElement,
-  callbacks: { onOpen(): void; onSubmit(): void }
+  callbacks: { onOpen(restored: boolean): void; onSubmit(): void },
+  openKey: string
 ): Panel {
-  const onBackdropClick = (e: MouseEvent) => {
-    if (e.target === dialog) dialog.close()
+  const fab = dialog.closest('.acw-root')?.querySelector<HTMLElement>('.acw-fab') ?? null
+
+  // Non-modal dialogs get no built-in Esc-to-close; only fires while focus is
+  // inside the panel — Esc elsewhere belongs to the page.
+  const onDialogKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && !e.isComposing) dialog.close()
   }
 
   const autosize = () => {
@@ -150,9 +175,17 @@ export function createPanel(
   const onDialogClose = () => {
     clearProps()
     unlockScroll()
+    rememberOpen(openKey, false)
+    // showModal() used to restore focus on close for free; a non-modal close
+    // drops it on <body> (the focused element just went display:none). Hand it
+    // to the FAB — unless the user is already focused somewhere in the page.
+    const active = document.activeElement
+    if (!active || active === document.body || dialog.contains(active)) {
+      fab?.focus()
+    }
   }
 
-  dialog.addEventListener('click', onBackdropClick)
+  dialog.addEventListener('keydown', onDialogKeydown)
   dialog.addEventListener('close', onDialogClose)
   input.addEventListener('input', autosize)
   input.addEventListener('keydown', onKeydown)
@@ -161,28 +194,37 @@ export function createPanel(
   viewport?.addEventListener('scroll', onViewportChange)
 
   return {
-    open() {
+    open(opts) {
       if (dialog.open) return
-      // Mobile: NON-modal → plain fixed sheet, no top layer (iOS clips top-layer
-      // under the keyboard). Desktop: modal → top layer + Esc + focus-trap +
-      // ::backdrop for free (no keyboard to fight there).
+      const restore = opts?.restore ?? false
       if (isMobile()) {
         lockScroll() // reset document scroll to 0 so the fixed panel/scrim land on the viewport
-        dialog.show()
-      } else {
-        dialog.showModal()
+      } else if (restore) {
+        // Reopening after a navigation must be instant — an entry animation on
+        // every page load would break the "chat travels with you" illusion.
+        dialog.classList.add('acw-no-anim')
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => dialog.classList.remove('acw-no-anim'))
+        )
       }
+      dialog.show() // ALWAYS non-modal — see the header comment
+      rememberOpen(openKey, true)
       syncViewport() // seed --acw-vvh/--acw-vvtop for the current (keyboard-closed) state
       renderDebug()
-      if (!isMobile()) input.focus() // no surprise keyboard pop on mobile
-      callbacks.onOpen()
+      // No focus steal on mobile (surprise keyboard pop) or on restore (the
+      // user is browsing the page; the chat is a companion, not a claim).
+      if (!isMobile() && !restore) input.focus()
+      callbacks.onOpen(restore)
     },
     close() {
       dialog.close()
     },
     isOpen: () => dialog.open,
     dispose() {
-      dialog.removeEventListener('click', onBackdropClick)
+      // Listeners go first: the dialog.close() below must NOT run
+      // onDialogClose — dispose() fires on astro:before-swap, and erasing the
+      // session open flag there would kill reopen-after-navigation.
+      dialog.removeEventListener('keydown', onDialogKeydown)
       dialog.removeEventListener('close', onDialogClose)
       input.removeEventListener('input', autosize)
       input.removeEventListener('keydown', onKeydown)

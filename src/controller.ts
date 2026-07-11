@@ -13,7 +13,9 @@
  */
 
 import { logger } from './logger'
+import { openStateKey } from './openState'
 import { createPanel, resetInput } from './panel'
+import type { OpenOptions } from './panel'
 import { scrollToBottom } from './scroll'
 import { sanitizeEndpoint, postChat, postFeedback, isSSEResponse, readSSEStream } from './transport'
 import { createStreamingRenderer } from './render'
@@ -26,7 +28,8 @@ import type { FeedbackHandler } from './ui'
 import type { ChatConfig, QuickReply } from './types'
 
 export interface ChatApi {
-  open(): void
+  /** `restore: true` = reopening after a page navigation (instant, no focus steal). */
+  open(opts?: OpenOptions): void
   /** Open the panel and send a message programmatically (`acw:ask` event). */
   ask(text: string): void
   dispose(): void
@@ -372,9 +375,9 @@ export function createChat(root: HTMLElement): ChatApi {
   }
 
   const panel = createPanel(dialog, input, {
-    onOpen() {
+    onOpen(restored) {
       fab.classList.remove('has-unread')
-      emit('acw:open')
+      emit('acw:open', { restored })
       renderInitial()
       // Every open lands at the newest message (messenger convention) — while
       // the panel is closed the scroller has no layout, so an answer that
@@ -382,7 +385,7 @@ export function createChat(root: HTMLElement): ChatApi {
       scrollToBottom(scroller)
     },
     onSubmit,
-  })
+  }, openStateKey(config.storageKey))
 
   form.addEventListener('submit', (e) => {
     e.preventDefault()
@@ -410,7 +413,7 @@ export function createChat(root: HTMLElement): ChatApi {
   }, { signal })
 
   return {
-    open: () => panel.open(),
+    open: (opts) => panel.open(opts),
     ask(text: string) {
       panel.open()
       if (streaming || input.disabled) {
