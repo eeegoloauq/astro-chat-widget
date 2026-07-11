@@ -13,6 +13,8 @@
  *   - any element with a data-acw-open attribute
  *   - the `acw:ask` CustomEvent on document ({ detail: { text } })
  *   - the deep-link hash (default #chat), incl. same-document hashchange
+ *   - reopen-after-navigation: a panel that was open when the user left the
+ *     page reopens on the next one (sessionStorage flag, desktop only)
  *
  * Host-page analytics: the widget dispatches `acw:open`, `acw:send` and
  * `acw:feedback` CustomEvents on document.
@@ -158,6 +160,7 @@ const config: ChatConfig = {
 
 <script>
   import { logger } from './logger'
+  import { openStateKey, wasOpen } from './openState'
   import type { ChatApi } from './controller'
 
   let api: ChatApi | null = null
@@ -225,6 +228,24 @@ const config: ChatConfig = {
     void openChat()
   }
 
+  // The chat travels with the user: a panel that was open when the previous
+  // page was left reopens here (panel.ts wrote the sessionStorage flag,
+  // scoped by this instance's storageKey). Desktop only — a fullscreen sheet
+  // auto-opening on every page load would trap mobile users. The media query
+  // mirrors the panel.ts / CSS breakpoint.
+  function restoreOpenState() {
+    if (!window.matchMedia('(min-width: 769px)').matches) return
+    const root = getRoot()
+    if (!root) return
+    try {
+      const { storageKey } = JSON.parse(root.dataset.acwConfig || '{}')
+      if (!storageKey || !wasOpen(openStateKey(storageKey))) return
+    } catch {
+      return
+    }
+    void ensureChat().then((chat) => chat?.open({ restore: true }))
+  }
+
   // FAB reveal is deferred so it never competes with page paint.
   function scheduleReveal() {
     const reveal = () => {
@@ -247,6 +268,9 @@ const config: ChatConfig = {
     window.addEventListener('hashchange', handleDeepLink, { signal })
     scheduleReveal()
     handleDeepLink()
+    // After the deep link: if both fire, the explicit intent (animated open,
+    // focused input) wins — the restore's open() no-ops on an open dialog.
+    restoreOpenState()
   }
 
   function teardown() {

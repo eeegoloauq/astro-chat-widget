@@ -1,12 +1,12 @@
 /* ============================================================
    Chat shell: FAB, <dialog> panel, header, chips, composer.
 
-   The panel is a native <dialog>, shown with showModal() on
-   desktop:
-     - top layer → no z-index coordination with the host page
-     - ::backdrop, Esc, focus containment come for free
-     - open/close animation is @starting-style + allow-discrete,
-       zero JS timing
+   The panel is a native <dialog>, ALWAYS shown non-modally
+   (dialog.show(), panel.ts) — a companion widget, never a modal:
+   the page behind stays scrollable and interactive. So it is a
+   plain position:fixed element (no top layer, no ::backdrop) with
+   an explicit z-index (--acw-z-panel); open/close animation is
+   @starting-style + allow-discrete, zero JS timing.
    Closed state is display:none, so the "no backdrop-filter while
    closed" Safari-iOS rule (blur on a hidden fixed layer paints a
    white bar on iOS) holds by construction.
@@ -108,11 +108,6 @@
   pointer-events: none;
 }
 
-/* Desktop: page behind the floating widget doesn't scroll. */
-body:has(.acw-panel[open]) {
-  overflow: hidden;
-}
-
 /* Mobile scroll lock. overflow:hidden on html+body; the panel is
    position:fixed = viewport-relative, so the page's frozen scroll underneath
    never moves it; the panel tracks the visual viewport itself (--acw-vvtop)
@@ -166,8 +161,14 @@ body.acw-scroll-locked {
      so it tracks the keyboard 1:1 without lag. */
   transition: opacity var(--_acw-dur-med) var(--_acw-ease),
               translate var(--_acw-dur-med) var(--_acw-ease-spring),
-              display var(--_acw-dur-med) allow-discrete,
-              overlay var(--_acw-dur-med) allow-discrete;
+              display var(--_acw-dur-med) allow-discrete;
+}
+
+/* Reopen-after-navigation (panel.ts adds this for the opening frame): the
+   restored panel appears instantly — an entry animation on every page load
+   would break the "chat travels with you" illusion. */
+.acw-panel.acw-no-anim {
+  transition: none;
 }
 
 .acw-panel[open] {
@@ -183,32 +184,17 @@ body.acw-scroll-locked {
   }
 }
 
-/* ::backdrop can't reliably read inherited custom properties everywhere —
-   literal values on purpose. */
-.acw-panel::backdrop {
-  background: rgba(0, 0, 0, .2);
-  transition: opacity .3s ease,
-              display .3s allow-discrete,
-              overlay .3s allow-discrete;
-  opacity: 0;
-}
-
-.acw-panel[open]::backdrop {
-  opacity: 1;
-}
-
-@starting-style {
-  .acw-panel[open]::backdrop {
-    opacity: 0;
-  }
-}
-
 /* Desktop: compact floating panel, bottom-right — a widget, not an app.
-   Fixed size (no grow-on-answer: mid-read layout shift is an anti-pattern);
-   long answers scroll inside. */
+   Non-modal (Intercom model): a plain fixed element, the page behind stays
+   scrollable and interactive, no backdrop, no scroll lock. Fixed size (no
+   grow-on-answer: mid-read layout shift is an anti-pattern); long answers
+   scroll inside. */
 @media (min-width: 769px) {
   .acw-panel {
-    margin: auto 24px 24px auto;
+    position: fixed;
+    inset: auto 24px 24px auto;
+    margin: 0;
+    z-index: var(--_acw-z-panel);
     width: min(420px, calc(100vw - 48px));
     height: min(660px, calc(100dvh - 48px));
     border: 1px solid var(--_acw-border);
@@ -221,8 +207,7 @@ body.acw-scroll-locked {
                 translate var(--_acw-dur-med) var(--_acw-ease-spring),
                 width var(--_acw-dur-med) var(--_acw-ease-spring),
                 height var(--_acw-dur-med) var(--_acw-ease-spring),
-                display var(--_acw-dur-med) allow-discrete,
-                overlay var(--_acw-dur-med) allow-discrete;
+                display var(--_acw-dur-med) allow-discrete;
   }
 
   /* Wide mode: reading view for long answers */
@@ -257,7 +242,7 @@ body.acw-scroll-locked {
     width: 100%;
     height: var(--acw-vvh, 100dvh); /* JS tracks the visual viewport; 100dvh is only the pre-JS fallback. NOT transitioned — it tracks the keyboard 1:1 */
     margin: 0;
-    z-index: var(--_acw-z-panel); /* above the scrim; desktop uses the modal top layer instead */
+    z-index: var(--_acw-z-panel); /* above the scrim */
     transform: translateY(var(--acw-vvtop, 0px)); /* ride iOS focus-scroll so the sheet stays over the visible band. NOT transitioned */
     background: var(--_acw-surface-solid);
     translate: 0 100%; /* closed: parked just below the viewport */
@@ -273,8 +258,9 @@ body.acw-scroll-locked {
    viewport, so during the ≤1-frame lag at the tail of the keyboard animation the
    panel bottom can trail the keyboard top; the scrim (which extends below the
    panel and rides the same --acw-vvtop) guarantees that gap shows solid surface
-   colour, never the page. Desktop uses the modal ::backdrop, so this is
-   mobile-only. Solid colour + visibility toggle, NO backdrop-filter (blur on a
+   colour, never the page. Desktop deliberately has NO layer behind the panel
+   (the page stays interactive), so this is mobile-only.
+   Solid colour + visibility toggle, NO backdrop-filter (blur on a
    hidden fixed layer paints a white bar on Safari iOS). */
 .acw-scrim {
   position: fixed;

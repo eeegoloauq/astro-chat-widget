@@ -37,12 +37,13 @@ Entry flow: `AIChat.astro` renders static HTML → lazy-imports `controller.ts` 
 | `src/index.ts` | Public exports: component, `DEFAULT_STRINGS`, public types. |
 | `src/AIChat.astro` | Static shell (FAB + closed `<dialog>`); resolves props against defaults and serializes the full config into `data-acw-config`. |
 | `src/controller.ts` | `createChat(root)` — wires panel/store/transport/render/ui; teardown is one `AbortController.abort()`. |
-| `src/panel.ts` | Open/close: `showModal()` on desktop, **non-modal `show()` on mobile** + `visualViewport` tracking (the iOS keyboard fix). |
+| `src/panel.ts` | Open/close: **always non-modal `show()`** — desktop floating companion panel (own Esc/focus/z-index handling), mobile sheet + `visualViewport` tracking (the iOS keyboard fix). |
 | `src/transport.ts` | POST + SSE consumption; wire protocol documented in README. |
 | `src/render.ts` | Streaming markdown via `streaming-markdown`: append-only DOM, whole-word reveal at adaptive cadence. |
 | `src/ui.ts` | DOM builders for bubbles, chips, notes, message actions — `createElement`/`textContent` only. |
 | `src/scroll.ts` | Auto-scroll state machine; touch-grace rules tuned on real iOS. |
 | `src/store.ts` | One conversation in localStorage + feedback map; degrades to in-memory on storage failure. |
+| `src/openState.ts` | Per-tab "panel is open" flag (sessionStorage) — reopen-after-navigation, shared by shell and panel. |
 | `src/defaults.ts` | `DEFAULT_STRINGS` — the English i18n baseline. |
 | `src/types.ts` | Public configuration types. |
 | `src/logger.ts` | Dev-only console wrapper, `[astro-chat-widget]`-prefixed. |
@@ -56,7 +57,7 @@ Every module carries a header comment explaining the *why*, not just the what. T
 
 Do not "fix", "simplify" or "modernise" these. If one truly must change, flag it as a design change, not a cleanup.
 
-1. **Mobile opens the dialog non-modally** (`dialog.show()`, not `showModal()`). iOS Safari clips top-layer content to the visual viewport when the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)). The non-modal `position:fixed` sheet riding `visualViewport` is the fix, not an oversight.
+1. **The dialog always opens non-modally** (`dialog.show()`, never `showModal()`). Desktop: a chat widget is a companion to browsing (the Intercom model) — no backdrop, no scroll lock, no focus trap, clicks on the page don't close it, and an open panel reopens after navigation (sessionStorage flag); Esc / focus-return / z-index are hand-rolled in `panel.ts`. Mobile: non-modal is additionally the iOS fix — Safari clips top-layer content to the visual viewport when the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)); the `position:fixed` sheet riding `visualViewport` is the fix, not an oversight.
 2. **No `innerHTML` with interpolated data anywhere.** DOM is built with `createElement`/`createTextNode`; `<img>` in answers is stripped (a prompt-injected backend must not fire outbound requests); unsafe URL schemes are rejected; external links get `noopener`; HTTPS is enforced for endpoints in production builds. These are prompt-injection defenses.
 3. **Rendering is append-only.** During streaming, DOM that has been emitted is never rewritten — that is what prevents formatting flicker. Don't introduce re-render-the-bubble approaches.
 4. **`scroll.ts` touch-grace rules** were tuned against real iOS swipe inertia. Do not simplify them away.
@@ -67,7 +68,7 @@ Do not "fix", "simplify" or "modernise" these. If one truly must change, flag it
 
 ## Conventions
 
-- Public API surface = props, `ChatStrings` keys, `acw:*` CustomEvents, `--acw-*` CSS tokens, the SSE wire protocol, localStorage shapes. Changing any of these is breaking; additions must be mirrored in the README tables **in the same commit**.
+- Public API surface = props, `ChatStrings` keys, `acw:*` CustomEvents, `--acw-*` CSS tokens, the SSE wire protocol, storage shapes (localStorage conversation/feedback + the `<storageKey>:open` sessionStorage flag). Changing any of these is breaking; additions must be mirrored in the README tables **in the same commit**.
 - Everything visually themeable goes through an `--acw-*` custom property in `src/styles/tokens.css` — no hardcoded colors in the other stylesheets.
 - User-facing text lives only in `DEFAULT_STRINGS` / `ChatStrings` — never hardcode copy in the runtime module.
 - Commit style follows the existing history: `feat:`/`fix:`/`chore:` + imperative summary.

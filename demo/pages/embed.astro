@@ -67,7 +67,7 @@ import AIChat from '../../src/AIChat.astro'
             'Everything on this page ships as **one Astro component**:',
             '',
             '- Streaming answers over SSE, markdown rendered append-only',
-            '- Native `<dialog>` — modal on desktop, iOS-keyboard-proof sheet on mobile',
+            '- Native `<dialog>` — floating panel on desktop (the page stays scrollable), iOS-keyboard-proof sheet on mobile',
             '- Theming via `--acw-*` tokens — one accent variable to rebrand',
             '- FAQ chips like this one answer **instantly, without a backend call**',
             '',
@@ -184,11 +184,6 @@ import AIChat from '../../src/AIChat.astro'
      read against it. */
   .is-desktop body {
     background: #fafbfc;
-  }
-  /* The panel is open ~90% of the loop; the default modal dim would read as
-     "the site is gray". Keep the host page visibly white in the showcase. */
-  .is-desktop .acw-panel::backdrop {
-    background: rgba(15, 23, 42, 0.06);
   }
   .is-desktop .site {
     display: block;

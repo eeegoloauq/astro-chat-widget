@@ -16,7 +16,8 @@ Built for content/marketing sites that have an AI backend (RAG, support bot) and
 
 - **Zero JS in the initial bundle** — the shell renders static HTML; the chat module lazy-loads on first interaction (and prefetches on FAB hover).
 - **Streaming markdown** — append-only parser (no re-render flicker), word-by-word reveal at an adaptive cadence, honest auto-scroll that never fights the user.
-- **iOS keyboard that actually works.** iOS Safari clips the `<dialog>` top layer to the visual viewport while the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)), so on mobile the widget opens the dialog **non-modally** — a `position:fixed` sheet riding the keyboard via `visualViewport` tracking, the approach production messengers use. Desktop keeps `showModal()` and gets Esc, focus containment and `::backdrop` for free.
+- **A companion, not a modal.** The dialog always opens **non-modally**. On desktop that means an Intercom-style floating panel: the page behind stays scrollable and interactive, clicking the page doesn't close the chat (Esc, with focus in the panel, does), and an open panel survives navigation — it reopens instantly on the next page until the user closes it.
+- **iOS keyboard that actually works.** iOS Safari clips the `<dialog>` top layer to the visual viewport while the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)), so on mobile the non-modal dialog is a `position:fixed` sheet riding the keyboard via `visualViewport` tracking — the approach production messengers use.
 - **Hardened rendering** — DOM built via `createElement` only; unsafe URL schemes rejected; `<img>` in answers stripped (a prompt-injected backend must not fire outbound requests); `target=_blank` + `noopener` on external links; HTTPS enforced for endpoints in production builds.
 - **Single conversation** persisted in `localStorage` (30-day expiry, 50-message cap), with per-message 👍/👎 feedback.
 - Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, Stop-mid-stream that keeps the partial answer.
@@ -118,12 +119,14 @@ document.dispatchEvent(new CustomEvent('acw:ask', { detail: { text: 'How do I…
 
 Deep link: `https://example.com/any-page#chat` opens the chat on load (hash configurable via `deepLinkHash`).
 
+An open panel travels across page navigations: a sessionStorage flag (`<storageKey>:open`, per tab) reopens it on the next page — desktop only, instantly, without stealing focus. Closing the panel ends that.
+
 ## Analytics events
 
 The widget dispatches CustomEvents on `document` — forward them to whatever you use:
 
 ```js
-document.addEventListener('acw:open', () => ym(ID, 'reachGoal', 'open-ai-chat'))
+document.addEventListener('acw:open', (e) => ym(ID, 'reachGoal', 'open-ai-chat')) // e.detail = { restored } — true when the panel reopened itself after a page navigation
 document.addEventListener('acw:send', (e) => ym(ID, 'reachGoal', 'send-ai-message')) // e.detail = { text, local? } — local: true for FAQ chips answered without a backend call
 document.addEventListener('acw:feedback', (e) => { /* e.detail = { messageId, rating } */ })
 ```
