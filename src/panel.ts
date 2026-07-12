@@ -213,7 +213,16 @@ export function createPanel(
       renderDebug()
       // No focus steal on mobile (surprise keyboard pop) or on restore (the
       // user is browsing the page; the chat is a companion, not a claim).
-      if (!isMobile() && !restore) input.focus()
+      // show() itself has already run the dialog focusing steps (the spec
+      // offers no opt-out) and parked focus on the panel's first header
+      // button — where a stray Enter would silently toggle it. Undo that:
+      // either claim focus deliberately (composer) or give it back.
+      if (!isMobile() && !restore) {
+        input.focus()
+      } else {
+        const stolen = document.activeElement
+        if (stolen instanceof HTMLElement && dialog.contains(stolen)) stolen.blur()
+      }
       callbacks.onOpen(restore)
     },
     close() {
