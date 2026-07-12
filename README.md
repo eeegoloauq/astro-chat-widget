@@ -1,5 +1,9 @@
 # astro-chat-widget
 
+[![npm version](https://img.shields.io/npm/v/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
+[![npm downloads](https://img.shields.io/npm/dm/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
+[![license](https://img.shields.io/npm/l/astro-chat-widget)](./LICENSE)
+
 A self-contained AI chat widget for [Astro](https://astro.build) sites. Floating action button → native `<dialog>` panel → streaming answers over SSE. No React, no runtime framework — one dependency ([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)), plain TypeScript and CSS.
 
 Built for content/marketing sites that have an AI backend (RAG, support bot) and want a production-quality chat UI without shipping a component framework for it.
@@ -26,9 +30,17 @@ Built for content/marketing sites that have an AI backend (RAG, support bot) and
 
 ## Install
 
+Published on npm as [`astro-chat-widget`](https://www.npmjs.com/package/astro-chat-widget):
+
 ```sh
 npm install astro-chat-widget
+# or: pnpm add astro-chat-widget · yarn add astro-chat-widget
 ```
+
+Astro is a peer dependency (`>=4.0.0`) — you already have it. The package ships
+as TypeScript source (no build step); your project's Astro/Vite compiles it, so
+nothing extra lands in your bundle beyond the one runtime dependency
+([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)).
 
 ## Quick start
 
