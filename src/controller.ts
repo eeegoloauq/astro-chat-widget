@@ -184,15 +184,21 @@ export function createChat(root: HTMLElement): ChatApi {
         throw new Error(`HTTP ${response.status}`)
       }
 
-      const content = message.startContent()
-      contentStarted = true
-      const renderer = createStreamingRenderer(content, scroller, {
+      const renderer = createStreamingRenderer(message.content, scroller, {
         signal: requestController.signal,
         linkPrefix,
       })
       const result = await readSSEStream(
         response,
         (accumulated) => {
+          // Swap the typing indicator on the FIRST TOKEN, not on response
+          // headers: an LLM backend opens the stream immediately and thinks
+          // for seconds before the first chunk — the dots must cover that
+          // gap, or the answer appears out of a blank row.
+          if (!contentStarted) {
+            message.startContent()
+            contentStarted = true
+          }
           rawAccumulated = accumulated
           renderer.update(accumulated)
         },
@@ -211,7 +217,7 @@ export function createChat(root: HTMLElement): ChatApi {
         convo.messages.push({ id, role: 'assistant', content: result.text, ts })
         store.save(convo)
         attachMessageActions(message.row, id, strings, store, handleFeedback, ts)
-        announce(content.textContent || '')
+        announce(message.content.textContent || '')
         markUnread()
         // Backend follow-up suggestions (optional in the done-event) become
         // quick-reply chips under the answer. Not persisted: they belong to

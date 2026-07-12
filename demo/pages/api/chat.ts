@@ -70,9 +70,9 @@ export const POST: APIRoute = async ({ request }) => {
   const { message = '' } = await request.json().catch(() => ({}))
   const answer = ANSWERS.find((a) => a.match.test(message)) ?? DEFAULT_ANSWER
 
-  // Hold the response so the widget's typing indicator ("Thinking…") gets its
-  // moment — a real backend is never instant. Before the return, not inside
-  // the stream: the indicator is swapped out as soon as headers arrive.
+  // Time-to-first-token, INSIDE the stream like a real LLM backend: headers
+  // land immediately, the first chunk only after the model has "thought" —
+  // the widget must keep its typing indicator through exactly that gap.
   // The index-showcase iframes (same-origin Referer carries the /embed query)
   // get choreography on top: the phone frame thinks a touch longer than the
   // desktop one, and the iOS question is the long-think beat on both — held
@@ -81,15 +81,14 @@ export const POST: APIRoute = async ({ request }) => {
   const referer = request.headers.get('referer') || ''
   const showcase = referer.includes('/embed')
   const longThink = showcase && /ios|keyboard|клав/i.test(message)
-  await new Promise((r) =>
-    setTimeout(r, longThink ? 10500 : showcase && !referer.includes('desktop') ? 1800 : 700)
-  )
+  const firstTokenDelay = longThink ? 10500 : showcase && !referer.includes('desktop') ? 1800 : 700
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
       const send = (data: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+      await new Promise((r) => setTimeout(r, firstTokenDelay))
       // Keep trailing spaces attached so chunks concatenate cleanly.
       for (const word of answer.text.split(/(?<=\s)/)) {
         send({ chunk: word })
