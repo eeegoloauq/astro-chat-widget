@@ -159,8 +159,8 @@ import AIChat from '../../src/AIChat.astro'
 
   window.setTimeout(() => {
     ask() // no text: open only — show the greeting and the chips first
-    // Opening focuses a control (header button on mobile, textarea on
-    // desktop) — drop the ring, this frame is a non-interactive showcase.
+    // Desktop opening focuses the composer — drop the ring, this frame is a
+    // non-interactive showcase. (Mobile/restore opens claim no focus at all.)
     window.setTimeout(() => (document.activeElement as HTMLElement | null)?.blur?.(), 150)
     window.setTimeout(cycle, GREETING_TIME + LAG)
   }, OPEN_DELAY)
