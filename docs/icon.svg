@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Catalog / avatar icon: the widget's FAB sparkle on the default accent.
+       Submitted to astro.build's integrations library (public/assets/integrations/). -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b83ff"/>
+      <stop offset="1" stop-color="#4257e0"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g)"/>
+  <g fill="#fff" transform="translate(12.8 12.8) scale(4.2667)">
+    <path d="M12 3l1.9 5.7a1 1 0 0 0 .63.63L20.2 11.2a.85.85 0 0 1 0 1.6l-5.67 1.87a1 1 0 0 0-.63.63L12 21l-1.9-5.7a1 1 0 0 0-.63-.63L3.8 12.8a.85.85 0 0 1 0-1.6l5.67-1.87a1 1 0 0 0 .63-.63L12 3z"/>
+    <path d="M19 2.6l.62 1.88a.6.6 0 0 0 .38.38l1.88.62a.32.32 0 0 1 0 .6l-1.88.62a.6.6 0 0 0-.38.38L19 8.96l-.62-1.88a.6.6 0 0 0-.38-.38L16.12 6.08a.32.32 0 0 1 0-.6L18 4.86a.6.6 0 0 0 .38-.38L19 2.6z" opacity=".85"/>
+  </g>
+</svg>
