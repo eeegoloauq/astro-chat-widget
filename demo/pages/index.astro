@@ -22,12 +22,41 @@ import AIChat from '../../src/AIChat.astro'
     <title>astro-chat-widget — demo</title>
   </head>
   <body>
+    <a
+      class="gh"
+      href="https://github.com/eeegoloauq/astro-chat-widget"
+      target="_blank"
+      rel="noopener"
+      aria-label="astro-chat-widget on GitHub"
+    >
+      <svg class="gh-mark" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+      </svg>
+      GitHub
+      <span class="gh-stars" hidden>
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true">
+          <path d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.62c.61.09.86.84.41 1.28l-3.04 2.96.72 4.18a.75.75 0 0 1-1.09.79L8 12.35l-3.75 1.97a.75.75 0 0 1-1.09-.79l.72-4.18L.84 6.37a.75.75 0 0 1 .41-1.28l4.2-.61L7.33.67A.75.75 0 0 1 8 .25Z"/>
+        </svg>
+        <span data-stars></span>
+      </span>
+    </a>
+
     <main>
       <h1>astro-chat-widget</h1>
       <p class="hint">
         Live demo, mock backend — try it yourself:
         <a href="#chat" data-acw-open>the bubble ↘</a>
       </p>
+
+      <button class="install" type="button" title="Copy to clipboard">
+        <code>npm install astro-chat-widget</code>
+        <svg class="install-copy" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>
+        </svg>
+        <svg class="install-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12.5 9.5 18 20 6.5"/>
+        </svg>
+      </button>
 
       <div class="frames" aria-hidden="true">
         <figure class="device device--desktop">
@@ -84,6 +113,40 @@ import AIChat from '../../src/AIChat.astro'
   </body>
 </html>
 
+<script>
+  // Live star count for the corner GitHub pill. Unauthenticated API quota is
+  // per visitor IP (60/h) — a session cache keeps reloads free. On any
+  // failure the pill stays a plain GitHub link; the count is garnish.
+  const stars = document.querySelector<HTMLElement>('.gh-stars')
+  const out = document.querySelector<HTMLElement>('[data-stars]')
+  const KEY = 'acw:demo:stars'
+  ;(async () => {
+    if (!stars || !out) return
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(KEY) || 'null')
+      let n = cached && Date.now() - cached.t < 3_600_000 ? cached.n : null
+      if (n === null) {
+        const repo = await fetch('https://api.github.com/repos/eeegoloauq/astro-chat-widget')
+        if (!repo.ok) return
+        n = (await repo.json()).stargazers_count
+        sessionStorage.setItem(KEY, JSON.stringify({ n, t: Date.now() }))
+      }
+      out.textContent = new Intl.NumberFormat('en', { notation: 'compact' }).format(n)
+      stars.hidden = false
+    } catch { /* plain link is fine */ }
+  })()
+
+  // Click-to-copy on the install command; the icon confirms instead of a toast.
+  const install = document.querySelector<HTMLButtonElement>('.install')
+  install?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText('npm install astro-chat-widget')
+      install.classList.add('is-copied')
+      window.setTimeout(() => install.classList.remove('is-copied'), 1600)
+    } catch { /* clipboard unavailable — the text is right there to select */ }
+  })
+</script>
+
 <style>
   :root {
     color-scheme: dark;
@@ -111,9 +174,83 @@ import AIChat from '../../src/AIChat.astro'
     color: #fff;
   }
   .hint {
-    margin: 0 0 2rem;
+    margin: 0 0 1.1rem;
     font-size: 0.95rem;
     color: rgba(255, 255, 255, 0.68);
+  }
+
+  /* Corner GitHub pill — same glass vocabulary as the browser chrome below. */
+  .gh {
+    position: fixed;
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.78);
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .gh:hover {
+    border-color: rgba(142, 162, 255, 0.55);
+    background: rgba(142, 162, 255, 0.1);
+    color: #fff;
+  }
+  .gh-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding-left: 0.55rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.16);
+    color: rgba(255, 255, 255, 0.65);
+    font-variant-numeric: tabular-nums;
+  }
+  .gh:hover .gh-stars {
+    color: #ffd76e;
+  }
+
+  /* Copyable install command. */
+  .install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 2.25rem;
+    padding: 0.5rem 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .install:hover {
+    border-color: rgba(142, 162, 255, 0.55);
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .install code {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.85rem;
+  }
+  .install code::before {
+    content: '$ ';
+    color: rgba(142, 162, 255, 0.75);
+  }
+  .install .install-check {
+    display: none;
+    color: #7ce38b;
+  }
+  .install.is-copied .install-copy {
+    display: none;
+  }
+  .install.is-copied .install-check {
+    display: block;
   }
   /* Opens the chat via the widget's own data-acw-open hook (see AIChat.astro). */
   .hint a {

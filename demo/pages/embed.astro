@@ -146,12 +146,32 @@ import AIChat from '../../src/AIChat.astro'
     else ask(text) // chips gone somehow — the mock still answers it
   }
 
+  // Self-heal: a kiosk frame outlives its backend session — e.g. Vercel's
+  // challenge cookie expires and every POST starts 403ing, so each lap ends
+  // in a red error note forever. A reload re-runs the challenge and starts
+  // clean. Throttled per frame so a genuinely down backend reloads at most
+  // once per 5 min instead of storming.
+  function healIfBroken(): boolean {
+    if (!document.querySelector('.acw-note--error')) return false
+    try {
+      const key = `acw:embed:lastReload:${params.get('desktop') !== null ? 'desktop' : params.get('start') || '0'}`
+      const last = parseInt(sessionStorage.getItem(key) || '0', 10) || 0
+      if (Date.now() - last < 5 * 60_000) return false
+      sessionStorage.setItem(key, String(Date.now()))
+    } catch {
+      return false // no storage → no throttle guarantee → don't risk a reload loop
+    }
+    window.location.reload()
+    return true
+  }
+
   function cycle() {
     const beat = BEATS[i]
     i = (i + 1) % BEATS.length
     if (beat.faq) pickChip(beat.text)
     else ask(beat.text)
     window.setTimeout(() => {
+      if (healIfBroken()) return
       document.querySelector<HTMLButtonElement>('.acw-new')?.click()
       window.setTimeout(cycle, GREETING_TIME)
     }, beat.wait)
