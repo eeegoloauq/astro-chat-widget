@@ -146,13 +146,15 @@ import AIChat from '../../src/AIChat.astro'
     else ask(text) // chips gone somehow — the mock still answers it
   }
 
-  // Self-heal: a kiosk frame outlives its backend session — e.g. Vercel's
-  // challenge cookie expires and every POST starts 403ing, so each lap ends
-  // in a red error note forever. A reload re-runs the challenge and starts
-  // clean. Throttled per frame so a genuinely down backend reloads at most
-  // once per 5 min instead of storming.
+  // Self-heal: a kiosk frame outlives its deployment. Two known ways it
+  // breaks: Vercel's challenge cookie expires and every POST starts 403ing
+  // (red error note each lap), or a new deploy replaces the hashed chunks and
+  // the stale HTML's controller import 404s (panel never opens at all). A
+  // reload fetches fresh HTML and re-runs the challenge. Throttled per frame
+  // so a genuinely down backend reloads at most once per 5 min, not a storm.
   function healIfBroken(): boolean {
-    if (!document.querySelector('.acw-note--error')) return false
+    const dead = !document.querySelector('.acw-panel[open]') // checked ≥9s in — a live frame opened long ago
+    if (!dead && !document.querySelector('.acw-note--error')) return false
     try {
       const key = `acw:embed:lastReload:${params.get('desktop') !== null ? 'desktop' : params.get('start') || '0'}`
       const last = parseInt(sessionStorage.getItem(key) || '0', 10) || 0
