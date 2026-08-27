@@ -4,9 +4,13 @@
 [![npm downloads](https://img.shields.io/npm/dm/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
 [![license](https://img.shields.io/npm/l/astro-chat-widget)](./LICENSE)
 
-A self-contained AI chat widget for [Astro](https://astro.build) sites. Floating action button → native `<dialog>` panel → streaming answers over SSE. No React, no runtime framework — one dependency ([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)), plain TypeScript and CSS.
+A chat widget for [Astro](https://astro.build) sites: a floating button opens a
+native `<dialog>` panel that streams answers from your AI backend over SSE.
+Plain TypeScript and CSS, one runtime dependency
+([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)).
 
-Built for content/marketing sites that have an AI backend (RAG, support bot) and want a production-quality chat UI without shipping a component framework for it.
+Built for content sites that already have a RAG or support backend behind them
+and would rather not ship a component framework for the chat UI.
 
 <p align="center">
   <img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
@@ -16,17 +20,17 @@ Built for content/marketing sites that have an AI backend (RAG, support bot) and
   <sub>The self-running showcase from <code>npm run demo</code> — the widget answering from the mock SSE backend.</sub>
 </p>
 
-## Features
+## What it does
 
-- **Zero JS in the initial bundle** — the shell renders static HTML; the chat module lazy-loads on first interaction (and prefetches on FAB hover).
-- **Streaming markdown** — append-only parser (no re-render flicker), word-by-word reveal at an adaptive cadence, honest auto-scroll that never fights the user.
-- **A companion, not a modal.** The dialog always opens **non-modally**. On desktop that means an Intercom-style floating panel: the page behind stays scrollable and interactive, clicking the page doesn't close the chat (Esc, with focus in the panel, does), and an open panel survives navigation — it reopens instantly on the next page until the user closes it.
-- **iOS keyboard that actually works.** iOS Safari clips the `<dialog>` top layer to the visual viewport while the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)), so on mobile the non-modal dialog is a `position:fixed` sheet riding the keyboard via `visualViewport` tracking — the approach production messengers use.
-- **Hardened rendering** — DOM built via `createElement` only; unsafe URL schemes rejected; `<img>` in answers stripped (a prompt-injected backend must not fire outbound requests); `target=_blank` + `noopener` on external links; HTTPS enforced for endpoints in production builds.
-- **Single conversation** persisted in `localStorage` (30-day expiry, 50-message cap), with per-message 👍/👎 feedback.
-- Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, Stop-mid-stream that keeps the partial answer.
-- **Messenger ergonomics** — the conversation starts at the composer and grows upward; every open lands on the newest message; an unread dot lights the FAB when an answer finishes while the panel is closed; message times on hover.
-- Full i18n via a strings prop; `prefers-reduced-motion` respected; ARIA throughout — finished answers are announced to screen readers whole, not word by word.
+- The shell renders as static HTML; the chat module loads on first interaction, and prefetches when the button is hovered.
+- Streaming markdown through an append-only parser, revealed word by word, with auto-scroll that stops when the user scrolls up.
+- The dialog opens **non-modally**: the page behind stays scrollable and interactive, clicking it does not close the chat (Esc does), and an open panel reopens itself on the next page until it is closed.
+- On mobile the panel is a `position:fixed` sheet riding the keyboard via `visualViewport`, because iOS Safari clips the `<dialog>` top layer while the keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)).
+- Answers are built with `createElement` only: unsafe URL schemes rejected, `<img>` stripped so a prompt-injected backend cannot fire outbound requests, `noopener` on external links, HTTPS enforced for endpoints in production builds.
+- One conversation kept in `localStorage` (30-day expiry, 50-message cap), with thumbs up/down per message.
+- Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, and Stop mid-stream that keeps the partial answer.
+- The conversation starts at the composer and grows upward; an unread dot lights the button when an answer finishes while the panel is closed.
+- Every string is a prop, `prefers-reduced-motion` is respected, and finished answers are announced to screen readers whole rather than word by word.
 
 ## Install
 
@@ -51,7 +55,7 @@ import { AIChat } from 'astro-chat-widget'
 <AIChat endpoint="/api/chat" />
 ```
 
-That's it — the FAB appears bottom-right after page paint. One instance per page.
+The button appears bottom-right after page paint. One instance per page.
 
 A fuller setup:
 
