@@ -1,0 +1,33 @@
+# The pre-merge check, and the only thing this repository asks of the local
+# runner: pull requests live in Forgejo, so the gate has to be here. Everything
+# after the merge — main, tags, releases, publishing — runs on GitHub, where the
+# copy of this file in .github/workflows does the same work for free.
+#
+# NB: because this directory exists, Forgejo ignores .github/workflows entirely.
+name: ci
+
+on:
+  pull_request
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the running check pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # astro check type-checks the component and the demo that consumes it,
+      # which is the whole of what this package can be checked against.
+      - run: npm run check
+      - run: npm run build
