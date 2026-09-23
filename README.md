@@ -202,7 +202,7 @@ Full token list:
 ## Demo playground
 
 ```sh
-npm install
+npm ci
 npm run demo   # → http://localhost:4322
 ```
 
