@@ -1,34 +1,26 @@
-<div align="center">
-
 # astro-chat-widget
 
-**A streaming AI chat widget for Astro sites.**
+A chat widget for [Astro](https://astro.build) sites: a floating button opens a native `<dialog>`
+panel that streams answers from your AI backend over SSE. Plain TypeScript and CSS, one runtime
+dependency ([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)). Made for
+content sites that already have a RAG or support backend.
 
 [![npm version](https://img.shields.io/npm/v/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
 [![npm downloads](https://img.shields.io/npm/dm/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
+[![CI](https://github.com/eeegoloauq/astro-chat-widget/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/eeegoloauq/astro-chat-widget/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/astro-chat-widget)](./LICENSE)
-
-A chat widget for [Astro](https://astro.build) sites: a floating button opens a
-native `<dialog>` panel that streams answers from your AI backend over SSE.
-Plain TypeScript and CSS, one runtime dependency
-([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)).
-
-Built for content sites that already have a RAG or support backend behind them
-and would rather not ship a component framework for the chat UI.
 
 <img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
 
-<sub>The self-running showcase from <code>npm run demo</code> — the widget answering from the mock SSE backend.</sub>
-
-</div>
+The demo from `npm run demo`, answering from the mock SSE backend.
 
 ## What it does
 
 - The shell renders as static HTML; the chat module loads on first interaction, and prefetches when the button is hovered.
 - Streaming markdown through an append-only parser, revealed word by word, with auto-scroll that stops when the user scrolls up.
-- The dialog opens **non-modally**: the page behind stays scrollable and interactive, clicking it does not close the chat (Esc does), and an open panel reopens itself on the next page until it is closed.
+- The dialog opens non-modally: the page behind stays scrollable and interactive, clicking it does not close the chat (Esc does), and an open panel reopens itself on the next page until it is closed.
 - On mobile the panel is a `position:fixed` sheet riding the keyboard via `visualViewport`, because iOS Safari clips the `<dialog>` top layer while the keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)).
-- Answers are built with `createElement` only: unsafe URL schemes rejected, `<img>` stripped so a prompt-injected backend cannot fire outbound requests, `noopener` on external links, HTTPS enforced for endpoints in production builds.
+- Answers are built with `createElement` only: unsafe URL schemes rejected, images left without `src` so a prompt-injected backend cannot trigger outbound requests, `noopener` on external links, HTTPS enforced for endpoints in production builds.
 - One conversation kept in `localStorage` (30-day expiry, 50-message cap), with thumbs up/down per message.
 - Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, and Stop mid-stream that keeps the partial answer.
 - The conversation starts at the composer and grows upward; an unread dot lights the button when an answer finishes while the panel is closed.
@@ -43,10 +35,9 @@ npm install astro-chat-widget
 # or: pnpm add astro-chat-widget · yarn add astro-chat-widget
 ```
 
-Astro is a peer dependency (`>=4.0.0`) — you already have it. The package ships
-as TypeScript source (no build step); your project's Astro/Vite compiles it, so
-nothing extra lands in your bundle beyond the one runtime dependency
-([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)).
+Astro `>=4.0.0` is a peer dependency. The package ships TypeScript source without a build step;
+your project's Astro/Vite compiles it, and the only runtime dependency in your bundle is
+`streaming-markdown`.
 
 ## Quick start
 
@@ -98,9 +89,9 @@ data: {"chunk": "…more text"}
 data: {"done": true, "suggestions": ["Follow-up question?", "Another one?"]}
 ```
 
-- `chunk` — incremental text (markdown), any granularity.
-- `done` — end of answer; optional `suggestions` (≤3 shown) become quick-reply chips.
-- `error` — `data: {"error": "..."}` shows the retry note.
+- `chunk`: incremental markdown text, any granularity.
+- `done`: end of the answer; optional `suggestions` (up to 3 shown) become quick-reply chips.
+- `error`: `data: {"error": "..."}` shows the retry note.
 - HTTP `429` with a `Retry-After` header pauses the composer with a countdown.
 
 The optional `feedbackEndpoint` receives `POST { sessionId, messageId, rating: 1 | -1, userPrompt, aiResponse, lang, comment: null, timestamp }`.
@@ -141,7 +132,7 @@ An open panel travels across page navigations: a sessionStorage flag (`<storageK
 
 ## Analytics events
 
-The widget dispatches CustomEvents on `document` — forward them to whatever you use:
+The widget dispatches CustomEvents on `document` for your analytics:
 
 ```js
 document.addEventListener('acw:open', (e) => ym(ID, 'reachGoal', 'open-ai-chat')) // e.detail = { restored } — true when the panel reopened itself after a page navigation
@@ -151,7 +142,9 @@ document.addEventListener('acw:feedback', (e) => { /* e.detail = { messageId, ra
 
 ## Theming
 
-The widget reads `--acw-*` custom properties, **set on `:root`**. Every color derives from `--acw-accent` via `color-mix()` where possible, so most brands only need:
+The widget reads `--acw-*` custom properties set on `:root`. The accent variants are derived from
+`--acw-accent` with `color-mix()`; surfaces, text, borders and the danger color have their own
+tokens with dark-theme defaults. Most brands only need:
 
 ```css
 :root {
@@ -159,7 +152,7 @@ The widget reads `--acw-*` custom properties, **set on `:root`**. Every color de
 }
 ```
 
-The default look is a dark glass panel that works on any page. This is the mobile sheet running exactly the override above:
+The default is a dark glass panel. The mobile sheet with only the override above:
 
 <p align="center">
   <img src="docs/theming.webp" alt="The mobile sheet re-branded with a single --acw-accent override" width="390">
@@ -169,7 +162,7 @@ Full token list:
 
 | Token | Purpose |
 | --- | --- |
-| `--acw-accent` | Buttons, FAB, links, selection. Everything below falls back to a `color-mix()` of it. |
+| `--acw-accent` | Buttons, FAB, links, selection. The accent variants below default to a `color-mix()` of it. |
 | `--acw-accent-hover` / `-soft` / `-strong` / `-disabled` | Hover state · light variant (links, focus rings) · dark end of the FAB gradient · disabled send. |
 | `--acw-accent-glow-soft` / `-glow` / `-glow-strong` | FAB shadow at rest / pulse peak / hover. |
 | `--acw-on-accent` | Text/icon color on accent surfaces (default `#fff`). |
@@ -191,15 +184,15 @@ Full token list:
 
 ## Host page requirements
 
-- **One `<AIChat />` per page** (typically in your layout).
-- **Viewport meta for Android keyboards:**
+- One `<AIChat />` per page, usually in your layout.
+- Viewport meta for Android keyboards:
 
   ```html
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   ```
 
-  Chrome ≥108 defaults to `resizes-visual` (keyboard overlays the page), which would cover the composer. `resizes-content` makes the layout viewport shrink. iOS ignores this attribute entirely — that's what the `visualViewport` tracking is for.
-- The widget uses `color-mix()`, `:has()`, `@starting-style` and `transition-behavior: allow-discrete` — evergreen browsers from ~2024 onward. On older browsers the panel still opens and streams; only open/close animations degrade.
+  Chrome ≥108 defaults to `resizes-visual` (keyboard overlays the page), which would cover the composer. `resizes-content` makes the layout viewport shrink. iOS ignores this attribute; the widget handles iOS with `visualViewport` tracking.
+- The widget uses `color-mix()`, `:has()`, `@starting-style` and `transition-behavior: allow-discrete` — current browsers from about 2024. On older browsers the panel still opens and streams; only open/close animations degrade.
 
 ## Demo playground
 
@@ -208,11 +201,11 @@ npm ci
 npm run demo   # → http://localhost:4322
 ```
 
-Runs the widget against a mock SSE backend (`demo/pages/api/chat.ts`) — canned answers about theming, markdown and the iOS keyboard, streamed word by word. The index page frames two self-running live previews (`demo/pages/embed.astro`): the desktop glass panel over a light page, and the mobile sheet rebranded with a single `--acw-accent` override. The FAB in the corner is the interactive instance. The demo is dev-only and is not part of the published package.
+Runs the widget against a mock SSE backend (`demo/pages/api/chat.ts`) with canned answers about theming, markdown and the iOS keyboard, streamed word by word. The index page frames two self-running live previews (`demo/pages/embed.astro`): the desktop glass panel over a light page, and the mobile sheet rebranded with a single `--acw-accent` override. The FAB in the corner is the interactive instance. The demo is dev-only and is not part of the published package.
 
 ## Debugging the iOS keyboard
 
-Append `#kbdebug` to the URL on a real device: a monospace readout overlays the panel with live `visualViewport` numbers. Desktop DevTools cannot reproduce the iOS keyboard behaviour; real-device numbers are the only ground truth.
+Append `#kbdebug` to the URL on a real device: a monospace readout overlays the panel with live `visualViewport` numbers. Desktop DevTools cannot reproduce the iOS keyboard, so test on a device.
 
 ## License
 
