@@ -1,4 +1,8 @@
+<div align="center">
+
 # astro-chat-widget
+
+**A streaming AI chat widget for Astro sites.**
 
 [![npm version](https://img.shields.io/npm/v/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
 [![npm downloads](https://img.shields.io/npm/dm/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
@@ -12,13 +16,11 @@ Plain TypeScript and CSS, one runtime dependency
 Built for content sites that already have a RAG or support backend behind them
 and would rather not ship a component framework for the chat UI.
 
-<p align="center">
-  <img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
-</p>
+<img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
 
-<p align="center">
-  <sub>The self-running showcase from <code>npm run demo</code> — the widget answering from the mock SSE backend.</sub>
-</p>
+<sub>The self-running showcase from <code>npm run demo</code> — the widget answering from the mock SSE backend.</sub>
+
+</div>
 
 ## What it does
 
