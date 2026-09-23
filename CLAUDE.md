@@ -1,74 +1,24 @@
-# CLAUDE.md
+# Agent guide
 
-Operating guide for AI coding agents working in this repo (`AGENTS.md` is a symlink to this file for other tools). Humans: start with [README.md](./README.md).
+`astro-chat-widget` is an Astro chat component for content sites with an existing AI or support backend. It opens a native dialog and streams SSE answers. The npm package ships `src/` as TypeScript and CSS source; consumers compile it. `demo/` is a playground and is not published. See [README.md](./README.md) for the public API and [demo screenshots](./docs/demo.webp) and [theme screenshot](./docs/theming.webp) for the intended appearance.
 
-## What this is
+## Commands and release
 
-`astro-chat-widget` — a self-contained AI chat widget for Astro sites: FAB → native `<dialog>` panel → streaming SSE answers. Zero framework runtime, exactly one runtime dependency (`streaming-markdown`).
+- `npm ci` installs from the lockfile; `.npmrc` disables install scripts.
+- `npm run check` runs `astro check` across the package and demo.
+- `npm run build` builds the Vercel demo. Both CI workflows run it after `npm run check`; it creates no npm package artifact.
+- `npm run demo` starts the mock backend and playground at `http://localhost:4322`.
 
-Two facts that shape everything:
+There is no automated runtime test suite. For behavior changes, use the demo to open the widget, send a message, inspect streamed markdown, and check the browser console. Desktop emulation cannot validate iOS keyboard or touch scrolling: use a real iOS device and `#kbdebug` for viewport numbers.
 
-- **The package ships as TypeScript source.** `src/` is published as-is (see `files` in package.json); the consumer's Astro/Vite compiles it. There is no build/dist step.
-- **`demo/` is a dev-only playground** (mock SSE backend, two pages). It never ships.
+The demo has a Vercel adapter, but this repo specifies no deployment trigger or rollback procedure. Before deploying it, identify the deployment and rollback mechanism in the hosting project; verify the demo after deployment and restore its previous deployment if needed. GitHub's publish workflow runs on `v*` tags or manual dispatch and publishes to npm after `npm run check`. A bad npm release requires a corrected version; the repo has no package rollback workflow.
 
-## Commands
+## Decisions to preserve
 
-| Command | Purpose |
-| --- | --- |
-| `npm ci` | Install. Lockfile-only; `.npmrc` sets `ignore-scripts=true` — keep both. |
-| `npm run check` | `astro check` over `src/` + `demo/`. **The static verification loop.** Must stay at 0 errors. |
-| `npm run demo` | Dev server at `http://localhost:4322` against the mock SSE backend. |
-| `npm run build` | Vercel build of the **demo playground** — deploy-only, never part of verification. |
+- Keep the dialog non-modal (`show()`). It lets desktop visitors keep browsing and avoids Safari keyboard clipping of top-layer content on mobile. The mobile sheet follows `visualViewport`; touch-grace rules in `scroll.ts` were tuned on real iOS devices — don't simplify them.
+- Streamed markdown is append-only to avoid formatting flicker. Do not replace emitted DOM during streaming.
+- Build answer content with DOM nodes, never interpolated `innerHTML`. Reject unsafe links and answer images so backend content cannot trigger outbound requests. Keep production endpoints HTTPS.
+- Keep one conversation and one widget instance per page. Runtime configuration comes from `data-acw-config`. User-facing text lives only in `DEFAULT_STRINGS`/`ChatStrings`. `src/` must work in consumers' Astro toolchains without this repo's build configuration.
+- Keep the sole runtime dependency, `streaming-markdown`, unless a deliberate design change is agreed. Public props, strings, events, CSS tokens, SSE protocol, and storage shapes are compatibility surfaces; update README tables when they change.
 
-There is **no test suite**. The published package has **no build step** — `src/` ships as TypeScript source. `npm run build` exists solely to deploy the demo to Vercel (`@astrojs/vercel` adapter in `astro.config.mjs`); it produces no package artifacts.
-
-## How to verify a change
-
-1. `npm run check` → 0 errors.
-2. Runtime, headlessly: `npm run demo`, then drive `http://localhost:4322` with Playwright — open the FAB, send a message, watch the streamed markdown render, read the console for `[astro-chat-widget]` errors. The index frames `/embed` previews (desktop + `?accent=` rebrand) that exercise both panel modes and the theming tokens.
-3. Anything touching the mobile keyboard, `visualViewport`, or touch scrolling **cannot be verified in desktop Chromium**. Real iOS device numbers are the only ground truth (`#kbdebug` URL hash shows a live overlay). If you changed that code, say explicitly in your report that it needs a real-device pass — do not claim it verified.
-
-## Map
-
-Entry flow: `AIChat.astro` renders static HTML → lazy-imports `controller.ts` on first interaction → controller wires everything else.
-
-| File | One-liner |
-| --- | --- |
-| `src/index.ts` | Public exports: component, `DEFAULT_STRINGS`, public types. |
-| `src/AIChat.astro` | Static shell (FAB + closed `<dialog>`); resolves props against defaults and serializes the full config into `data-acw-config`. |
-| `src/controller.ts` | `createChat(root)` — wires panel/store/transport/render/ui; teardown is one `AbortController.abort()`. |
-| `src/panel.ts` | Open/close: **always non-modal `show()`** — desktop floating companion panel (own Esc/focus/z-index handling), mobile sheet + `visualViewport` tracking (the iOS keyboard fix). |
-| `src/transport.ts` | POST + SSE consumption; wire protocol documented in README. |
-| `src/render.ts` | Streaming markdown via `streaming-markdown`: append-only DOM, whole-word reveal at adaptive cadence. |
-| `src/ui.ts` | DOM builders for bubbles, chips, notes, message actions — `createElement`/`textContent` only. |
-| `src/scroll.ts` | Auto-scroll state machine; touch-grace rules tuned on real iOS. |
-| `src/store.ts` | One conversation in localStorage + feedback map; degrades to in-memory on storage failure. |
-| `src/openState.ts` | Per-tab "panel is open" flag (sessionStorage) — reopen-after-navigation, shared by shell and panel. |
-| `src/defaults.ts` | `DEFAULT_STRINGS` — the English i18n baseline. |
-| `src/types.ts` | Public configuration types. |
-| `src/logger.ts` | Dev-only console wrapper, `[astro-chat-widget]`-prefixed. |
-| `src/styles/` | `tokens.css` (the `--acw-*` theme surface), `panel.css`, `messages.css`. |
-| `demo/pages/` | Playground pages + mock SSE backend (`api/chat.ts`, `api/feedback.ts`). |
-| `astro.config.mjs` | Demo-only config (`srcDir: ./demo`, port 4322, Vercel adapter for demo deploys). |
-
-Every module carries a header comment explaining the *why*, not just the what. Those headers are the primary architecture documentation — read them before editing a file, and update them in the same commit when behaviour changes.
-
-## Invariants — deliberate decisions that look like bugs
-
-Do not "fix", "simplify" or "modernise" these. If one truly must change, flag it as a design change, not a cleanup.
-
-1. **The dialog always opens non-modally** (`dialog.show()`, never `showModal()`). Desktop: a chat widget is a companion to browsing (the Intercom model) — no backdrop, no scroll lock, no focus trap, clicks on the page don't close it, and an open panel reopens after navigation (sessionStorage flag); Esc / focus-return / z-index are hand-rolled in `panel.ts`. Mobile: non-modal is additionally the iOS fix — Safari clips top-layer content to the visual viewport when the software keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)); the `position:fixed` sheet riding `visualViewport` is the fix, not an oversight.
-2. **No `innerHTML` with interpolated data anywhere.** DOM is built with `createElement`/`createTextNode`; `<img>` in answers is stripped (a prompt-injected backend must not fire outbound requests); unsafe URL schemes are rejected; external links get `noopener`; HTTPS is enforced for endpoints in production builds. These are prompt-injection defenses.
-3. **Rendering is append-only.** During streaming, DOM that has been emitted is never rewritten — that is what prevents formatting flicker. Don't introduce re-render-the-bubble approaches.
-4. **`scroll.ts` touch-grace rules** were tuned against real iOS swipe inertia. Do not simplify them away.
-5. **One conversation, one instance per page.** No multi-chat sidebar, no cross-tab sync — deliberate scope.
-6. **The runtime module reads configuration only from `data-acw-config`.** No env vars, no direct prop access at runtime.
-7. **Dependency policy: runtime deps = 1, and it stays that way.** A new dependency is a design decision, never part of a fix — prefer a few lines of own code. If one is truly added: `osv-scanner` before merge, avoid releases younger than ~a week, lockfile committed, `ignore-scripts` stays on.
-8. **`src/` must remain valid untranspiled Astro/TS for consumers' toolchains** — no path aliases, no build-time-only syntax, nothing that assumes this repo's config.
-
-## Conventions
-
-- Public API surface = props, `ChatStrings` keys, `acw:*` CustomEvents, `--acw-*` CSS tokens, the SSE wire protocol, storage shapes (localStorage conversation/feedback + the `<storageKey>:open` sessionStorage flag). Changing any of these is breaking; additions must be mirrored in the README tables **in the same commit**.
-- Everything visually themeable goes through an `--acw-*` custom property in `src/styles/tokens.css` — no hardcoded colors in the other stylesheets.
-- User-facing text lives only in `DEFAULT_STRINGS` / `ChatStrings` — never hardcode copy in the runtime module.
-- Commit style follows the existing history: `feat:`/`fix:`/`chore:` + imperative summary.
+Planned larger work: `ROADMAP.md`.
