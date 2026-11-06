@@ -1,6 +1,6 @@
 ---
 /**
- * Demo playground — default theme, mock SSE backend (./api/chat.ts).
+ * Demo playground — default theme, browser-only mock SSE transport (../mock.ts).
  * Run with `npm run demo`. Also the stage for README screenshots.
  *
  * The two frames are iframes of ./embed.astro — the live widget playing a
@@ -8,7 +8,9 @@
  * glass panel over a light skeleton page, and the mobile sheet rebranded via
  * ?accent. The real interactive instance is the FAB in the corner.
  */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 import AIChat from '../../src/AIChat.astro'
+import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from '../endpoints'
 ---
 
 <html lang="en">
@@ -65,10 +67,6 @@ import AIChat from '../../src/AIChat.astro'
 
     <main>
       <h1>astro-chat-widget</h1>
-      <p class="hint">
-        Live demo, mock backend — try it yourself:
-        <a href="#chat" data-acw-open>the bubble ↘</a>
-      </p>
 
       <button class="install" type="button" title="Copy to clipboard">
         <code>npm install astro-chat-widget</code>
@@ -87,21 +85,26 @@ import AIChat from '../../src/AIChat.astro'
             <span class="chrome-url">yoursite.dev</span>
           </div>
           <div class="chrome-viewport">
-            <iframe src="/embed?desktop" title="" tabindex="-1"></iframe>
+            <iframe src={`${base}/embed/?desktop`} title="" tabindex="-1"></iframe>
           </div>
           <figcaption><code>&lt;AIChat endpoint="/api/chat" /&gt;</code></figcaption>
         </figure>
 
         <figure class="device device--phone">
-          <iframe src="/embed?accent=%23e31e24&start=2&lag=4800" title="" tabindex="-1"></iframe>
+          <iframe src={`${base}/embed/?accent=%23e31e24&start=2&lag=4800`} title="" tabindex="-1"></iframe>
           <figcaption><code>--acw-accent: #e31e24</code></figcaption>
         </figure>
       </div>
     </main>
 
     <AIChat
-      endpoint="/api/chat"
-      feedbackEndpoint="/api/feedback"
+      endpoint={CHAT_ENDPOINT}
+      feedbackEndpoint={FEEDBACK_ENDPOINT}
+      strings={{
+        title: 'Widget demo',
+        greeting: 'Ask about theming, Markdown or mobile layout.',
+        disclaimer: 'Preset responses. Messages stay in your browser.',
+      }}
       quickReplies={[
         {
           text: 'What can this widget do?',
@@ -136,6 +139,8 @@ import AIChat from '../../src/AIChat.astro'
 </html>
 
 <script>
+  import '../mock'
+
   // Live counts for the corner pills (GitHub stars, npm weekly downloads).
   // Both APIs are unauthenticated with per-visitor-IP quotas — a session
   // cache keeps reloads free. On any failure the pill stays a plain link;

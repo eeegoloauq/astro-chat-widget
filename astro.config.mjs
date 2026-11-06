@@ -1,13 +1,11 @@
-// Dev config for the demo playground only (`npm run demo`).
-// The published package is the `src/` sources; nothing here ships.
+// Demo only. The npm package ships src/ without a build step.
 import { defineConfig } from 'astro/config'
-// Only for deploying the demo to Vercel (`npm run build`) — the demo's mock
-// SSE endpoints are on-demand routes and need a server target. The published
-// package itself still has no build step.
-import vercel from '@astrojs/vercel'
 
 export default defineConfig({
   srcDir: './demo',
+  output: 'static',
+  site: 'https://eeegoloauq.github.io',
+  base: process.env.ASTRO_BASE || '/astro-chat-widget',
+  trailingSlash: 'always',
   server: { port: 4322, host: true },
-  adapter: vercel(),
 })

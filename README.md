@@ -201,7 +201,7 @@ npm ci
 npm run demo   # → http://localhost:4322
 ```
 
-Runs the widget against a mock SSE backend (`demo/pages/api/chat.ts`) with canned answers about theming, markdown and the iOS keyboard, streamed word by word. The index page frames two self-running live previews (`demo/pages/embed.astro`): the desktop glass panel over a light page, and the mobile sheet rebranded with a single `--acw-accent` override. The FAB in the corner is the interactive instance. The demo is dev-only and is not part of the published package.
+Runs the widget against a browser-only mock SSE transport (`demo/mock.ts`) with canned answers about theming, markdown and the iOS keyboard, streamed word by word. The index page frames two self-running live previews (`demo/pages/embed.astro`): the desktop glass panel over a light page, and the mobile sheet rebranded with a single `--acw-accent` override. The FAB in the corner is the interactive instance. The demo builds as static files for GitHub Pages and is not part of the npm package. It uses preset answers and needs no API keys.
 
 ## Debugging the iOS keyboard
 

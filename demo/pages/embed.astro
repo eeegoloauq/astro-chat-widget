@@ -18,6 +18,7 @@
  * Dev-only, like everything under demo/.
  */
 import AIChat from '../../src/AIChat.astro'
+import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from '../endpoints'
 ---
 
 <html lang="en">
@@ -55,8 +56,13 @@ import AIChat from '../../src/AIChat.astro'
     </div>
 
     <AIChat
-      endpoint="/api/chat"
-      feedbackEndpoint="/api/feedback"
+      endpoint={CHAT_ENDPOINT}
+      feedbackEndpoint={FEEDBACK_ENDPOINT}
+      strings={{
+        title: 'Widget demo',
+        greeting: 'Ask about theming, Markdown or mobile layout.',
+        disclaimer: 'Preset responses. Messages stay in your browser.',
+      }}
       deepLinkHash={false}
       storageKey="acw:embed"
       feedbackStorageKey="acw:embed:feedback"
@@ -86,6 +92,8 @@ import AIChat from '../../src/AIChat.astro'
 </html>
 
 <script>
+  import '../mock'
+
   const params = new URLSearchParams(window.location.search)
 
   // setProperty takes the value as an opaque CSS token — no injection surface.
@@ -147,7 +155,7 @@ import AIChat from '../../src/AIChat.astro'
   }
 
   // Self-heal: a kiosk frame outlives its deployment. Two known ways it
-  // breaks: Vercel's challenge cookie expires and every POST starts 403ing
+  // breaks: a transport error interrupts the scripted conversation
   // (red error note each lap), or a new deploy replaces the hashed chunks and
   // the stale HTML's controller import 404s (panel never opens at all). A
   // reload fetches fresh HTML and re-runs the challenge. Throttled per frame
