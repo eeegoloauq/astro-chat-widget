@@ -12,7 +12,7 @@ content sites that already have a RAG or support backend.
 
 <img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
 
-The demo from `npm run demo`, answering from the mock SSE backend.
+[Live demo](https://eeegoloauq.github.io/astro-chat-widget/) with preset responses streamed in the browser.
 
 ## What it does
 
