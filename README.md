@@ -1,212 +1,69 @@
 # astro-chat-widget
 
-A chat widget for [Astro](https://astro.build) sites: a floating button opens a native `<dialog>`
-panel that streams answers from your AI backend over SSE. Plain TypeScript and CSS, one runtime
-dependency ([`streaming-markdown`](https://github.com/thetarnav/streaming-markdown)). Made for
-content sites that already have a RAG or support backend.
+A chat panel for [Astro](https://astro.build) sites: quick answers, guides and streamed answers
+from your AI backend.
 
 [![npm version](https://img.shields.io/npm/v/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
-[![npm downloads](https://img.shields.io/npm/dm/astro-chat-widget)](https://www.npmjs.com/package/astro-chat-widget)
 [![CI](https://github.com/eeegoloauq/astro-chat-widget/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/eeegoloauq/astro-chat-widget/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/astro-chat-widget)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<img src="docs/demo.webp" alt="A scripted conversation in the widget's mobile sheet: a markdown answer streaming in word by word" width="390">
+<img src="docs/demo.webp" alt="The mobile sheet: the home screen with quick answers and guides in light mode, and a streamed answer with its source link in dark mode" width="402">
 
-[Live demo](https://eeegoloauq.github.io/astro-chat-widget/) with preset responses streamed in the browser.
+- Opens on a home screen with quick answers, guides and a field to ask.
+- Streams markdown answers from your backend over SSE, with links to their sources.
+- Answers known questions in the browser, without a backend call.
+- Follows light and dark mode; one CSS variable sets your brand color.
+- Keeps the composer above the iOS keyboard on phones.
 
-## What it does
-
-- The shell renders as static HTML; the chat module loads on first interaction, and prefetches when the button is hovered.
-- Streaming markdown through an append-only parser, revealed word by word, with auto-scroll that stops when the user scrolls up.
-- The dialog opens non-modally: the page behind stays scrollable and interactive, clicking it does not close the chat (Esc does), and an open panel reopens itself on the next page until it is closed.
-- On mobile the panel is a `position:fixed` sheet riding the keyboard via `visualViewport`, because iOS Safari clips the `<dialog>` top layer while the keyboard is up (WebKit [#300965](https://bugs.webkit.org/show_bug.cgi?id=300965), [#303167](https://bugs.webkit.org/show_bug.cgi?id=303167)).
-- Answers are built with `createElement` only: unsafe URL schemes rejected, images left without `src` so a prompt-injected backend cannot trigger outbound requests, `noopener` on external links, HTTPS enforced for endpoints in production builds.
-- One conversation kept in `localStorage` (30-day expiry, 50-message cap), with thumbs up/down per message.
-- Rate-limit handling (HTTP 429 + `Retry-After` countdown), retry on failure, and Stop mid-stream that keeps the partial answer.
-- The conversation starts at the composer and grows upward; an unread dot lights the button when an answer finishes while the panel is closed.
-- Every string is a prop, `prefers-reduced-motion` is respected, and finished answers are announced to screen readers whole rather than word by word.
+[Live demo](https://eeegoloauq.github.io/astro-chat-widget/)
 
 ## Install
 
-Published on npm as [`astro-chat-widget`](https://www.npmjs.com/package/astro-chat-widget):
-
 ```sh
 npm install astro-chat-widget
-# or: pnpm add astro-chat-widget · yarn add astro-chat-widget
 ```
 
-Astro `>=4.0.0` is a peer dependency. The package ships TypeScript source without a build step;
-your project's Astro/Vite compiles it, and the only runtime dependency in your bundle is
-`streaming-markdown`.
+Needs Astro 4 or later. The package ships TypeScript source, which your Astro build compiles.
 
-## Quick start
+## Usage
 
 ```astro
 ---
 import { AIChat } from 'astro-chat-widget'
 ---
-<AIChat endpoint="/api/chat" />
-```
-
-The button appears bottom-right after page paint. One instance per page.
-
-A fuller setup:
-
-```astro
 <AIChat
   endpoint="/api/chat"
-  feedbackEndpoint="/api/chat/feedback"
-  lang="en"
-  strings={{
-    title: 'Product assistant',
-    greeting: 'Hi! Ask me anything about our products.',
-  }}
-  quickReplies={[
-    { text: 'What do you sell?' },
-    {
-      text: 'Delivery options',
-      // `answer` makes the chip a local FAQ entry — instant, no backend call
-      answer: 'Courier **tomorrow**, pickup points in 2–3 days.',
-      followUps: [{ text: 'What do you sell?' }],
-    },
-  ]}
+  contactUrl="/contact"
+  quickReplies={[{ text: 'Delivery options', answer: 'Courier **tomorrow**.' }]}
+  articles={[{ title: 'Shipping and returns', href: '/help/shipping', minutes: 3 }]}
 />
 ```
 
-## Backend protocol
-
-`POST` to `endpoint` with JSON:
-
-```json
-{ "sessionId": "uuid", "message": "user text", "timestamp": "ISO-8601", "lang": "en" }
-```
-
-Respond with `Content-Type: text/event-stream`:
+Your endpoint receives `POST { sessionId, message, timestamp, lang }` and replies with
+`text/event-stream`:
 
 ```
-data: {"chunk": "Incremental answer text…"}
-data: {"chunk": "…more text"}
-data: {"done": true, "suggestions": ["Follow-up question?", "Another one?"]}
+data: {"chunk": "Markdown text"}
+data: {"done": true, "sources": [{"title": "Shipping", "href": "/help/shipping"}]}
 ```
 
-- `chunk`: incremental markdown text, any granularity.
-- `done`: end of the answer; optional `suggestions` (up to 3 shown) become quick-reply chips.
-- `error`: `data: {"error": "..."}` shows the retry note.
-- HTTP `429` with a `Retry-After` header pauses the composer with a countdown.
+| Prop | |
+|---|---|
+| `endpoint` | Chat endpoint (required) |
+| `quickReplies` | Questions on the home screen; one with `answer` is answered in the browser |
+| `articles` | Guides on the home screen and in search |
+| `contactUrl` | Link offered when the assistant can't help |
+| `strings` | Any user-facing text, for other languages |
 
-The optional `feedbackEndpoint` receives `POST { sessionId, messageId, rating: 1 | -1, userPrompt, aiResponse, lang, comment: null, timestamp }`.
+Set your brand color with `:root { --acw-accent: #e31e24; }`.
 
-## Props
+[Reference: all props, protocol, events, theming](docs/reference.md) · [Roadmap](ROADMAP.md)
 
-| Prop | Type | Default | |
-| --- | --- | --- | --- |
-| `endpoint` | `string` | — (required) | Chat endpoint. Relative URLs resolve against the page origin. |
-| `feedbackEndpoint` | `string` | `''` | Thumbs-rating endpoint. Without it, ratings persist locally only. |
-| `lang` | `string` | `'en'` | Sent to the backend with every message. |
-| `strings` | `Partial<ChatStrings>` | English | Every user-facing string — see `DEFAULT_STRINGS` export. |
-| `quickReplies` | `QuickReply[]` | `[]` | Starter chips under the greeting. `{ text, emoji? }` sends the text to the backend; add `answer` (markdown) to make a chip a **local FAQ entry** — answered instantly with no backend call — and `followUps: QuickReply[]` for the chips offered under that answer (an FAQ tree). |
-| `linkPrefix` | `{ add, skip? }` | — | Locale prefix for root-relative links in answers, e.g. `{ add: '/en', skip: ['/en', '/ru'] }` turns `/catalog` into `/en/catalog` and leaves `/ru/...` alone. |
-| `deepLinkHash` | `string \| false` | `'#chat'` | URL hash that opens the chat (for QR codes / emails). |
-| `storageKey` | `string` | `'acw-conversation'` | localStorage key — override to keep conversations when migrating from another widget. |
-| `feedbackStorageKey` | `string` | `'acw-feedback'` | localStorage key for the rating map. |
-| `maxLength` | `number` | `1000` | Composer character limit. |
-| `class` | `string` | — | Extra class on the root element. |
+## Development
 
-## Opening the chat
-
-Anything with a `data-acw-open` attribute opens the panel (delegated listener, works for content added later):
-
-```html
-<button data-acw-open>Ask the AI</button>
-```
-
-Programmatic open-and-ask (e.g. FAQ search → hand the query to the assistant):
-
-```js
-document.dispatchEvent(new CustomEvent('acw:ask', { detail: { text: 'How do I…?' } }))
-```
-
-Deep link: `https://example.com/any-page#chat` opens the chat on load (hash configurable via `deepLinkHash`).
-
-An open panel travels across page navigations: a sessionStorage flag (`<storageKey>:open`, per tab) reopens it on the next page — desktop only, instantly, without stealing focus. Closing the panel ends that.
-
-## Analytics events
-
-The widget dispatches CustomEvents on `document` for your analytics:
-
-```js
-document.addEventListener('acw:open', (e) => ym(ID, 'reachGoal', 'open-ai-chat')) // e.detail = { restored } — true when the panel reopened itself after a page navigation
-document.addEventListener('acw:send', (e) => ym(ID, 'reachGoal', 'send-ai-message')) // e.detail = { text, local? } — local: true for FAQ chips answered without a backend call
-document.addEventListener('acw:feedback', (e) => { /* e.detail = { messageId, rating } */ })
-```
-
-## Theming
-
-The widget reads `--acw-*` custom properties set on `:root`. The accent variants are derived from
-`--acw-accent` with `color-mix()`; surfaces, text, borders and the danger color have their own
-tokens with dark-theme defaults. Most brands only need:
-
-```css
-:root {
-  --acw-accent: #e31e24;
-}
-```
-
-The default is a dark glass panel. The mobile sheet with only the override above:
-
-<p align="center">
-  <img src="docs/theming.webp" alt="The mobile sheet re-branded with a single --acw-accent override" width="390">
-</p>
-
-Full token list:
-
-| Token | Purpose |
-| --- | --- |
-| `--acw-accent` | Buttons, FAB, links, selection. The accent variants below default to a `color-mix()` of it. |
-| `--acw-accent-hover` / `-soft` / `-strong` / `-disabled` | Hover state · light variant (links, focus rings) · dark end of the FAB gradient · disabled send. |
-| `--acw-accent-glow-soft` / `-glow` / `-glow-strong` | FAB shadow at rest / pulse peak / hover. |
-| `--acw-on-accent` | Text/icon color on accent surfaces (default `#fff`). |
-| `--acw-danger` | Error-note tint and the FAB unread dot (default `#e5484d`). |
-| `--acw-surface` | Desktop panel background (translucent for the glass effect). |
-| `--acw-surface-solid` | Mobile sheet + scrim background (must be opaque). |
-| `--acw-blur` | Desktop panel `backdrop-filter` (default `blur(24px) saturate(1.5)`). |
-| `--acw-raise` / `--acw-raise-subtle` | Light overlays: user bubble, hovers, inline code / chips, notes. |
-| `--acw-input-bg` / `--acw-input-bg-focus` | Composer field. |
-| `--acw-code-block-bg` | `<pre>` background. |
-| `--acw-scrollbar-thumb` | Messages scrollbar. |
-| `--acw-text-strong` / `--acw-text` / `--acw-text-muted` / `--acw-text-placeholder` / `--acw-text-faint` | Text hierarchy. |
-| `--acw-border` / `--acw-border-strong` / `--acw-border-subtle` | Border hierarchy. |
-| `--acw-font` / `--acw-font-size` / `-sm` / `-xs` | Typography (font defaults to `inherit`). |
-| `--acw-space-xs` / `--acw-space-sm` | Spacing rhythm. |
-| `--acw-radius-sm` / `-lg` / `-xl` | Corner radii. |
-| `--acw-dur-fast` / `--acw-dur-med` / `--acw-ease` / `--acw-ease-spring` | Motion. |
-| `--acw-z-fab` / `--acw-z-panel` | Stacking (defaults `5000` / `10001`; the mobile scrim sits at panel − 1). |
-
-## Host page requirements
-
-- One `<AIChat />` per page, usually in your layout.
-- Viewport meta for Android keyboards:
-
-  ```html
-  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
-  ```
-
-  Chrome ≥108 defaults to `resizes-visual` (keyboard overlays the page), which would cover the composer. `resizes-content` makes the layout viewport shrink. iOS ignores this attribute; the widget handles iOS with `visualViewport` tracking.
-- The widget uses `color-mix()`, `:has()`, `@starting-style` and `transition-behavior: allow-discrete` — current browsers from about 2024. On older browsers the panel still opens and streams; only open/close animations degrade.
-
-## Demo playground
-
-```sh
-npm ci
-npm run demo   # → http://localhost:4322
-```
-
-Runs the widget against a browser-only mock SSE transport (`demo/mock.ts`) with canned answers about theming, markdown and the iOS keyboard, streamed word by word. The index page frames two self-running live previews (`demo/pages/embed.astro`): the desktop glass panel over a light page, and the mobile sheet rebranded with a single `--acw-accent` override. The FAB in the corner is the interactive instance. The demo builds as static files for GitHub Pages and is not part of the npm package. It uses preset answers and needs no API keys.
-
-## Debugging the iOS keyboard
-
-Append `#kbdebug` to the URL on a real device: a monospace readout overlays the panel with live `visualViewport` numbers. Desktop DevTools cannot reproduce the iOS keyboard, so test on a device.
+Node 24, `npm ci`, then `npm run demo` for the playground at `http://localhost:4322` and
+`npm run check` for types.
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](LICENSE)

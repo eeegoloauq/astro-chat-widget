@@ -1,6 +1,6 @@
 # Agent guide
 
-`astro-chat-widget` is an Astro chat component for content sites with an existing AI or support backend. It opens a native dialog and streams SSE answers. The npm package ships `src/` as TypeScript and CSS source; consumers compile it. `demo/` is a playground and is not published. See [README.md](./README.md) for the public API and [demo screenshots](./docs/demo.webp) and [theme screenshot](./docs/theming.webp) for the intended appearance.
+`astro-chat-widget` is an Astro chat component for content sites with an existing AI or support backend. It opens a native dialog and streams SSE answers. The npm package ships `src/` as TypeScript and CSS source; consumers compile it. `demo/` is a playground and is not published. See [docs/reference.md](./docs/reference.md) for the public API and [demo screenshots](./docs/demo.webp) and [theme screenshot](./docs/theming.webp) for the intended appearance.
 
 ## Commands and release
 
@@ -19,6 +19,10 @@ The demo has a Vercel adapter, but this repo specifies no deployment trigger or 
 - Streamed markdown is append-only to avoid formatting flicker. Do not replace emitted DOM during streaming.
 - Build answer content with DOM nodes, never interpolated `innerHTML`. Reject unsafe links and answer images so backend content cannot trigger outbound requests. Keep production endpoints HTTPS.
 - Keep one conversation and one widget instance per page. Runtime configuration comes from `data-acw-config`. User-facing text lives only in `DEFAULT_STRINGS`/`ChatStrings`. `src/` must work in consumers' Astro toolchains without this repo's build configuration.
-- Keep the sole runtime dependency, `streaming-markdown`, unless a deliberate design change is agreed. Public props, strings, events, CSS tokens, SSE protocol, and storage shapes are compatibility surfaces; update README tables when they change.
+- Keep the sole runtime dependency, `streaming-markdown`, unless a deliberate design change is agreed. Public props, strings, events, CSS tokens, SSE protocol, and storage shapes are compatibility surfaces; update the tables in `docs/reference.md` when they change.
+- The panel opens on a home screen (home, chat, all guides) above one shared composer. Screens switch instantly, `.acw-screens` is `overflow: clip` and focus moves with `preventScroll`: a slide once let `focus()` scroll the clipped container sideways.
+- The default surface is opaque and follows the system theme through `light-dark()` tokens; glass is opt-in. No infinite or ambient animation.
+- Stop freezes an answer at what is on screen (`StreamingRenderer.shown()`); received but unrevealed text is dropped.
+- Keep the README short (one sentence, five bullets, install, usage, development). Details belong in `docs/reference.md`.
 
 Planned larger work: `ROADMAP.md`.
