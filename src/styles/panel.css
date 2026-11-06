@@ -1,5 +1,6 @@
 /* ============================================================
-   Chat shell: FAB, <dialog> panel, header, chips, composer.
+   Chat shell: FAB, <dialog> panel, screens (home / chat / all
+   guides), header, home rows, chips, composer.
 
    The panel is a native <dialog>, ALWAYS shown non-modally
    (dialog.show(), panel.ts) — a companion widget, never a modal:
@@ -33,7 +34,6 @@
   align-items: center;
   justify-content: center;
   z-index: var(--_acw-z-fab);
-  animation: acw-fab-glow 3.5s ease-in-out infinite;
 
   /* Hidden until the shell reveals it after page paint */
   opacity: 0;
@@ -56,7 +56,6 @@
   transform: scale(1.07);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35),
               0 6px 26px var(--_acw-accent-glow-strong);
-  animation-play-state: paused;
 }
 
 .acw-fab:active {
@@ -84,11 +83,6 @@
   transform: scale(1);
 }
 
-/* Soft breathing glow */
-@keyframes acw-fab-glow {
-  0%, 100% { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), 0 4px 18px var(--_acw-accent-glow-soft); }
-  50% { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), 0 4px 26px var(--_acw-accent-glow); }
-}
 
 .acw-fab-icon {
   width: 26px;
@@ -98,7 +92,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acw-fab { animation: none; }
   .acw-fab::after { transition: none; }
 }
 
@@ -202,18 +195,16 @@ body.acw-scroll-locked {
     background: var(--_acw-surface);
     backdrop-filter: var(--_acw-blur);
     -webkit-backdrop-filter: var(--_acw-blur);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, .35);
-    transition: opacity var(--_acw-dur-med) var(--_acw-ease),
-                translate var(--_acw-dur-med) var(--_acw-ease-spring),
-                width var(--_acw-dur-med) var(--_acw-ease-spring),
-                height var(--_acw-dur-med) var(--_acw-ease-spring),
-                display var(--_acw-dur-med) allow-discrete;
+    box-shadow: var(--_acw-shadow);
   }
+}
 
-  /* Wide mode: reading view for long answers */
-  .acw-panel.is-wide {
-    width: min(720px, calc(100vw - 48px));
-    height: calc(100dvh - 48px);
+/* Opt-in glass turns solid when the visitor asks for less transparency. */
+@media (min-width: 769px) and (prefers-reduced-transparency: reduce) {
+  .acw-panel {
+    background: var(--_acw-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -287,29 +278,81 @@ body.acw-scroll-locked {
   }
 }
 
+/* ── Screens ────────────────────────────────────────────────
+   Three screens share the panel above one composer; the dialog's
+   data-screen (home.ts) picks the visible one. Switching is
+   instant: a slide inside a small panel adds motion without
+   information. Hidden screens stay laid out (the chat scroller
+   keeps its position) but are invisible and inert.
+
+   overflow: clip, not hidden — a hidden container can still be
+   scrolled by focus(), which once shifted the whole panel sideways. */
+
+.acw-screens {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+}
+
+.acw-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.acw-panel:not([data-screen="home"]) .acw-screen--home,
+.acw-panel:not([data-screen="chat"]) .acw-screen--chat,
+.acw-panel:not([data-screen="guides"]) .acw-screen--guides {
+  visibility: hidden;
+}
+
 /* ── Header ─────────────────────────────────────────────────── */
 
 .acw-header {
   display: flex;
   align-items: center;
-  gap: var(--_acw-space-xs);
-  padding: 10px var(--_acw-space-sm);
+  gap: 4px;
+  min-height: 56px;
+  padding: 0 var(--_acw-space-xs) 0 var(--_acw-space-sm);
   border-bottom: 1px solid var(--_acw-border-subtle);
   flex-shrink: 0;
 }
 
+/* Home opens on the heading — no rule under its header. Screens with a
+   back button start it closer to the edge. */
+.acw-screen--home .acw-header { border-bottom-color: transparent; }
+.acw-header:has(.acw-back) { padding-left: 6px; }
+
 .acw-title {
   flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: var(--_acw-font-size);
   font-weight: 600;
   color: var(--_acw-text-strong);
-  letter-spacing: .01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acw-badge {
+  margin-left: 7px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, var(--_acw-accent) 45%, transparent);
+  border-radius: 5px;
+  color: var(--_acw-accent-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  vertical-align: 1px;
 }
 
 .acw-icon-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,14 +370,215 @@ body.acw-scroll-locked {
   color: var(--_acw-text-strong);
 }
 
-/* Expand toggle: desktop-only, icon swaps with the wide state */
-.acw-collapse-icon { display: none; }
-.acw-panel.is-wide .acw-expand-icon { display: none; }
-.acw-panel.is-wide .acw-collapse-icon { display: block; }
+/* ── Home + all guides ──────────────────────────────────────── */
 
-@media (max-width: 768px) {
-  .acw-expand { display: none; } /* mobile is already fullscreen */
+.acw-home {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--_acw-scrollbar-thumb) transparent;
+  padding: 4px 20px var(--_acw-space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
+
+.acw-hello {
+  margin: 2px 0 0;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: var(--_acw-text-strong);
+  text-wrap: balance;
+}
+
+.acw-home-default {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.acw-resume {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--_acw-border);
+  border-radius: 14px;
+  background: var(--_acw-raise-subtle);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--_acw-dur-fast) var(--_acw-ease);
+}
+
+.acw-resume:hover { border-color: var(--_acw-border-strong); }
+.acw-resume[hidden] { display: none; }
+
+.acw-resume-label {
+  font-size: var(--_acw-font-size-xs);
+  color: var(--_acw-text-muted);
+}
+
+.acw-resume-text {
+  grid-column: 1;
+  font-size: var(--_acw-font-size);
+  font-weight: 500;
+  color: var(--_acw-text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acw-resume svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--_acw-text-faint);
+}
+
+.acw-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.acw-group-title {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--_acw-text-muted);
+}
+
+/* One row style for quick answers, guides, search results and the
+   "see all" link: hairlines between rows, no boxes. */
+.acw-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 4px;
+  border: none;
+  border-top: 1px solid var(--_acw-border-subtle);
+  background: none;
+  color: var(--_acw-text-strong);
+  font-family: inherit;
+  font-size: var(--_acw-font-size);
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.acw-group-title + .acw-row,
+.acw-group > .acw-row:first-child { border-top: none; }
+
+.acw-row:hover .acw-row-text { color: var(--_acw-accent-soft); }
+
+.acw-row-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--_acw-text-faint);
+}
+
+.acw-row-text {
+  flex: 1;
+  min-width: 0;
+  transition: color var(--_acw-dur-fast) var(--_acw-ease);
+}
+
+.acw-row-meta {
+  flex-shrink: 0;
+  font-size: var(--_acw-font-size-xs);
+  color: var(--_acw-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.acw-row--more .acw-row-text { color: var(--_acw-accent-soft); font-weight: 500; }
+.acw-row--more .acw-row-icon { color: var(--_acw-accent-soft); }
+.acw-row--ask .acw-row-icon { color: var(--_acw-accent); }
+.acw-row--ask .acw-row-text { font-weight: 500; }
+
+/* Phones: 48px tap rows (Material 48dp, Apple 44pt), 16px text,
+   more air between sections. */
+@media (max-width: 768px) {
+  .acw-home { gap: 28px; padding-top: 8px; }
+  .acw-home-default { gap: 28px; }
+  .acw-hello { font-size: 26px; }
+  .acw-group-title { margin-bottom: 6px; }
+  .acw-row {
+    min-height: 52px;
+    padding-block: 13px;
+    font-size: 16px;
+  }
+  .acw-resume { padding: 14px 16px; }
+  .acw-header { min-height: 60px; }
+  .acw-icon-btn { width: 44px; height: 44px; }
+}
+
+/* The ↵ hint means nothing on touch keyboards, where Enter adds a line. */
+@media (hover: none) {
+  .acw-row--ask .acw-row-meta { display: none; }
+}
+
+/* ── New-chat confirmation ──────────────────────────────────── */
+
+.acw-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  flex-shrink: 0;
+  padding: 12px var(--_acw-space-sm);
+  border-bottom: 1px solid var(--_acw-border-subtle);
+  background: var(--_acw-raise-subtle);
+}
+
+.acw-confirm[hidden] { display: none; }
+
+.acw-confirm-text {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: var(--_acw-font-size-sm);
+  color: var(--_acw-text-strong);
+}
+
+.acw-confirm-text small {
+  display: block;
+  font-size: var(--_acw-font-size-xs);
+  color: var(--_acw-text-muted);
+}
+
+.acw-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--_acw-border-strong);
+  border-radius: 9px;
+  background: none;
+  color: var(--_acw-text-strong);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.acw-btn:hover { background: var(--_acw-raise); }
+
+.acw-btn--danger {
+  border-color: transparent;
+  background: var(--_acw-danger);
+  color: #fff;
+}
+
+.acw-btn--danger:hover { background: color-mix(in srgb, var(--_acw-danger) 88%, #000); }
 
 /* ── Quick-reply chips (in the message flow, under the greeting) ── */
 
@@ -385,7 +629,6 @@ body.acw-scroll-locked {
   flex-shrink: 0;
   padding: var(--_acw-space-xs) var(--_acw-space-sm);
   padding-bottom: max(var(--_acw-space-xs), env(safe-area-inset-bottom));
-  border-top: 1px solid var(--_acw-border-subtle);
   margin: 0;
 }
 
@@ -393,17 +636,24 @@ body.acw-scroll-locked {
   display: flex;
   align-items: flex-end;
   gap: var(--_acw-space-xs);
-  padding: 6px 6px 6px 14px;
-  border: 1px solid var(--_acw-border);
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--_acw-border-strong);
   border-radius: var(--_acw-radius-lg);
   background: var(--_acw-input-bg);
-  transition: border-color var(--_acw-dur-fast) var(--_acw-ease);
+  transition: border-color var(--_acw-dur-fast) var(--_acw-ease),
+              box-shadow var(--_acw-dur-fast) var(--_acw-ease);
 }
 
-/* Focus: brighten, don't shout — the send button already carries the accent */
 .acw-input-row:focus-within {
-  border-color: var(--_acw-border-strong);
+  border-color: var(--_acw-accent);
   background: var(--_acw-input-bg-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--_acw-accent) 22%, transparent);
+}
+
+.acw-input-icon {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--_acw-accent);
 }
 
 .acw-input {
@@ -454,6 +704,9 @@ body.acw-scroll-locked {
 .acw-send.is-streaming .acw-send-icon { display: none; }
 .acw-send.is-streaming .acw-stop-icon { display: block; }
 
+/* The disclaimer belongs to answers; home stays quiet. */
+.acw-panel:not([data-screen="chat"]) .acw-disclaimer { display: none; }
+
 .acw-disclaimer {
   margin: var(--_acw-space-xs) 0 0;
   font-size: var(--_acw-font-size-xs);
@@ -478,10 +731,18 @@ body.acw-scroll-locked {
   white-space: nowrap;
 }
 
+.acw-fab:focus-visible {
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35),
+              0 4px 26px var(--_acw-accent-glow);
+}
+
 .acw-fab:focus-visible,
 .acw-icon-btn:focus-visible,
 .acw-chip:focus-visible,
-.acw-send:focus-visible {
+.acw-send:focus-visible,
+.acw-row:focus-visible,
+.acw-resume:focus-visible,
+.acw-btn:focus-visible {
   outline: 2px solid var(--_acw-accent-soft);
   outline-offset: 2px;
 }

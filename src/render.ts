@@ -21,6 +21,7 @@
 
 import * as smd from 'streaming-markdown'
 import { attachAutoScrollTracker, scrollToBottom } from './scroll'
+import { applyLinkPrefix, isSafeUrl } from './links'
 import type { LinkPrefix } from './types'
 
 /* Adaptive reveal cadence (chars per frame @ ~60fps):
@@ -31,27 +32,6 @@ import type { LinkPrefix } from './types'
 const MIN_CHARS_PER_FRAME = 2
 const MAX_CHARS_PER_FRAME = 24
 const CATCHUP_FRAMES = 24
-
-// ── URL hardening ──────────────────────────────────────────────────────────
-
-export function isSafeUrl(url: string): boolean {
-  const trimmed = url.trim().toLowerCase()
-  if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) return true
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return true
-  // javascript:, data:, vbscript:, everything else
-  return false
-}
-
-/** `/catalog/x` → `/en/catalog/x` for i18n hosts (see LinkPrefix). */
-export function applyLinkPrefix(url: string, prefix?: LinkPrefix): string {
-  const trimmed = url.trim()
-  if (!prefix?.add || !trimmed.startsWith('/')) return trimmed
-  const skip = prefix.skip?.length ? prefix.skip : [prefix.add]
-  for (const s of skip) {
-    if (trimmed === s || trimmed.startsWith(s.endsWith('/') ? s : `${s}/`)) return trimmed
-  }
-  return `${prefix.add}${trimmed}`
-}
 
 // ── smd renderer ───────────────────────────────────────────────────────────
 
@@ -111,13 +91,15 @@ export interface StreamingRenderer {
   finish(flushImmediately?: boolean): void
   /** Resolves when the renderer has finished (or aborted) and cleaned up. */
   done: Promise<void>
+  /** Raw markdown actually written to the DOM — after Stop, what to keep. */
+  shown(): string
 }
 
 export interface StreamingRendererOptions {
   /** Multiplier on the reveal cadence. 1 = default, 0.5 = half speed
    *  (used for the greeting so it lands with a beat). */
   speedFactor?: number
-  /** Abort → dump the remaining buffer at once and close. */
+  /** Abort (Stop) → freeze at what is on screen: unrevealed text is dropped. */
   signal?: AbortSignal
   linkPrefix?: LinkPrefix
 }
@@ -136,6 +118,7 @@ export function createStreamingRenderer(
 
   let totalAccumulated = ''
   let pendingBuffer = ''
+  let written = ''
   let finishing = false
   let finished = false
   let rafHandle: number | null = null
@@ -147,6 +130,7 @@ export function createStreamingRenderer(
   const writeSlice = (slice: string) => {
     if (!slice) return
     const stick = tracker.shouldStickToBottom()
+    written += slice
     smd.parser_write(parser, slice)
     if (stick) scrollToBottom(scroller)
   }
@@ -179,13 +163,18 @@ export function createStreamingRenderer(
     cleanup()
   }
 
-  const onAbort = () => flushAndClose()
+  // Stop means stop where the reader is. Text received but not yet revealed
+  // is dropped — dumping it would make Stop look like it did nothing.
+  const onAbort = () => {
+    pendingBuffer = ''
+    flushAndClose()
+  }
 
   if (signal) {
     if (signal.aborted) {
       smd.parser_end(parser)
       cleanup()
-      return { update() {}, finish() {}, done }
+      return { update() {}, finish() {}, done, shown: () => written }
     }
     signal.addEventListener('abort', onAbort)
   }
@@ -206,6 +195,7 @@ export function createStreamingRenderer(
         cleanup()
       },
       done,
+      shown: () => written,
     }
   }
 
@@ -284,5 +274,6 @@ export function createStreamingRenderer(
       else schedule()
     },
     done,
+    shown: () => written,
   }
 }

@@ -18,19 +18,74 @@ export interface QuickReply {
   followUps?: QuickReply[]
 }
 
+/** A guide listed on the home screen and found by the composer search.
+ *  Links navigate the host page; an open panel follows on desktop. */
+export interface Article {
+  title: string
+  href: string
+  /** Reading time, shown as `readTime`. */
+  minutes?: number
+  /** Extra words the composer search matches, e.g. 'color brand css'. */
+  keywords?: string
+}
+
+/** A page an answer came from (SSE `done.sources`). */
+export interface Source {
+  title: string
+  href: string
+}
+
+/** Thumbs-down reason sent with the second feedback POST. */
+export type FeedbackReason = 'wrong' | 'off-topic' | 'outdated'
+
 /** Every user-facing string in the widget. All optional at the prop level —
  *  unset keys fall back to English (see defaults.ts). */
 export interface ChatStrings {
-  /** Panel header title. */
+  /** Panel header title (also the dialog's accessible name). */
   title: string
+  /** Badge after the title; empty string hides it. */
+  aiBadge: string
   /** aria-label of the floating action button. */
   buttonLabel: string
-  /** Composer placeholder (also its aria-label). */
+  /** Composer placeholder on the home screen (also its aria-label). */
   placeholder: string
-  /** Small print under the composer. */
+  /** Composer placeholder inside a conversation. */
+  placeholderFollowUp: string
+  /** Small print under the composer, shown in the conversation. */
   disclaimer: string
-  /** First assistant message, streamed on a fresh conversation. */
+  /** Home screen heading. */
   greeting: string
+  /** Home section headings. */
+  quickAnswers: string
+  guides: string
+  /** Row that opens the full guide list; `{n}` is the number of guides. */
+  allGuides: string
+  /** Header of the full guide list. */
+  allGuidesTitle: string
+  /** Guide reading time; `{n}` is minutes. */
+  readTime: string
+  /** Label of the card that returns to the stored conversation. */
+  continueConversation: string
+  /** First search result on the home screen; `{q}` is the typed text. */
+  askQuery: string
+  back: string
+  /** Label above the links an answer came from. */
+  sources: string
+  /** Tag on an answer the visitor stopped. */
+  stopped: string
+  /** Link to `contactUrl`. */
+  contact: string
+  /** Thumbs-down follow-up question and its three reasons. */
+  feedbackQuestion: string
+  reasonWrong: string
+  reasonOffTopic: string
+  reasonOutdated: string
+  feedbackThanks: string
+  /** New-chat confirmation. */
+  deleteConfirm: string
+  deleteNote: string
+  deleteYes: string
+  deleteNo: string
   thinking: string
   /** Swapped in when a response takes longer than 8s. */
   thinkingLong: string
@@ -48,8 +103,6 @@ export interface ChatStrings {
   stop: string
   newChat: string
   close: string
-  expand: string
-  collapse: string
 }
 
 /**
@@ -74,8 +127,12 @@ export interface ChatConfig {
   /** Sent to the backend with every message. */
   lang: string
   strings: ChatStrings
-  /** Starter chips under the greeting. Empty array → no starter chips. */
+  /** Home "Quick answers" (first three) and composer search. */
   quickReplies: QuickReply[]
+  /** Home "Guides" (first three), the full guide list and composer search. */
+  articles: Article[]
+  /** Where "Contact the team" links go. Empty hides the link. */
+  contactUrl: string
   linkPrefix?: LinkPrefix
   /** localStorage key for the conversation. */
   storageKey: string

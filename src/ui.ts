@@ -1,15 +1,45 @@
 /**
  * DOM builders for the message list: bubbles, typing indicator, message
- * actions (copy / thumbs), error + system notes, quick-reply chips.
+ * actions (copy / thumbs + reasons), answer footer (sources, contact link,
+ * stopped tag), error + system notes, quick-reply chips.
  *
  * Everything is built with createElement + textContent — no innerHTML with
  * interpolated data anywhere. Layout notes live in styles/messages.css.
  */
 
+import { applyLinkPrefix, isExternalUrl, isSafeUrl } from './links'
 import { renderMarkdownOneShot } from './render'
 import { scrollToBottom } from './scroll'
-import type { ChatStore, Conversation } from './store'
-import type { ChatStrings, LinkPrefix, QuickReply } from './types'
+import type { ChatMessage, ChatStore, Conversation } from './store'
+import type { ChatStrings, FeedbackReason, LinkPrefix, QuickReply } from './types'
+
+/** Everything the message builders need from the controller. */
+export interface UiContext {
+  strings: ChatStrings
+  store: ChatStore
+  onFeedback: FeedbackHandler
+  /** Validated contact URL, '' when unset. */
+  contactUrl: string
+  linkPrefix?: LinkPrefix
+  /** A source or contact link was followed (analytics + mobile sheet close). */
+  onLink(kind: 'guide' | 'contact', href: string): void
+}
+
+// Static icon markup only — never interpolated with data.
+const DOC_ICON =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>'
+const MAIL_ICON =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>'
+
+function setLinkTarget(link: HTMLAnchorElement, href: string): void {
+  link.href = href
+  if (isExternalUrl(href, window.location.origin)) {
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+  }
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -84,38 +114,78 @@ export function addAssistantMessage(scroller: HTMLElement, strings: ChatStrings)
   }
 }
 
-/** Replay a stored conversation (one-shot markdown, no reveal). */
-export function replayConversation(
-  scroller: HTMLElement,
-  conversation: Conversation,
-  strings: ChatStrings,
-  store: ChatStore,
-  onFeedback: FeedbackHandler,
-  linkPrefix?: LinkPrefix
-): void {
+/** Replay a stored conversation (one-shot markdown, no reveal). Assistant
+ *  messages before the first user message are greetings from ≤0.1.2 and are
+ *  skipped: the home screen replaced them. */
+export function replayConversation(scroller: HTMLElement, conversation: Conversation, ctx: UiContext): void {
   scroller.textContent = ''
+  let started = false
   for (const message of conversation.messages) {
     if (message.role === 'user') {
+      started = true
       addUserMessage(scroller, message.content, message.ts)
-    } else {
-      const row = el('div', 'acw-msg acw-msg--assistant')
-      const content = el('div', 'acw-msg-content')
-      renderMarkdownOneShot(content, message.content, linkPrefix)
-      row.appendChild(content)
-      scroller.appendChild(row)
-      // The canned greeting is not an answer — nothing to copy or rate.
-      // (content fallback covers conversations stored before `kind` existed)
-      if (message.kind !== 'greeting' && message.content !== strings.greeting) {
-        attachMessageActions(row, message.id, strings, store, onFeedback, message.ts)
-      }
+      continue
     }
+    if (!started || message.kind === 'greeting') continue
+    const row = el('div', 'acw-msg acw-msg--assistant')
+    const content = el('div', 'acw-msg-content')
+    renderMarkdownOneShot(content, message.content, ctx.linkPrefix)
+    row.appendChild(content)
+    scroller.appendChild(row)
+    addAnswerFooter(row, message, ctx)
+    attachMessageActions(row, message.id, ctx, message.ts)
   }
   scrollToBottom(scroller)
 }
 
+// ── Answer extras (tags, sources, contact) ─────────────────────────────────
+
+/** "Contact the team" link, or null when no contactUrl is configured. */
+export function contactLink(ctx: UiContext): HTMLAnchorElement | null {
+  if (!ctx.contactUrl) return null
+  const link = el('a', 'acw-contact')
+  link.innerHTML = MAIL_ICON
+  link.append(ctx.strings.contact)
+  setLinkTarget(link, ctx.contactUrl)
+  link.addEventListener('click', () => ctx.onLink('contact', ctx.contactUrl))
+  return link
+}
+
+/** Stopped tag, contact link and source links under a finished answer. */
+export function addAnswerFooter(
+  row: HTMLElement,
+  message: Pick<ChatMessage, 'sources' | 'stopped' | 'handoff'>,
+  ctx: UiContext
+): void {
+  if (message.stopped) row.appendChild(el('span', 'acw-tag', ctx.strings.stopped))
+  if (message.handoff) {
+    const link = contactLink(ctx)
+    if (link) row.appendChild(link)
+  }
+  if (!message.sources?.length) return
+  const box = el('div', 'acw-sources')
+  box.appendChild(el('span', 'acw-sources-label', ctx.strings.sources))
+  for (const source of message.sources) {
+    if (!isSafeUrl(source.href)) continue
+    const href = applyLinkPrefix(source.href, ctx.linkPrefix)
+    const link = el('a', 'acw-source')
+    link.innerHTML = DOC_ICON
+    link.appendChild(el('span', '', source.title))
+    setLinkTarget(link, href)
+    link.addEventListener('click', () => ctx.onLink('guide', href))
+    box.appendChild(link)
+  }
+  row.appendChild(box)
+}
+
 // ── Message actions (copy + thumbs) ────────────────────────────────────────
 
-export type FeedbackHandler = (messageId: string, rating: 1 | -1, row: HTMLElement) => void
+export type FeedbackHandler = (
+  messageId: string,
+  rating: 1 | -1,
+  row: HTMLElement,
+  reason?: FeedbackReason
+) => void
 
 const THUMB_UP_PATH = 'M7 10v12h10.3a2 2 0 0 0 2-1.7l1.4-8a2 2 0 0 0-2-2.3H13l1-4.5A1.8 1.8 0 0 0 12.2 3L7 10zM3 10h4v12H3z'
 const THUMB_DOWN_PATH = 'M17 14V2H6.7a2 2 0 0 0-2 1.7l-1.4 8a2 2 0 0 0 2 2.3H11l-1 4.5A1.8 1.8 0 0 0 11.8 21L17 14zm4 0h-4V2h4z'
@@ -165,11 +235,10 @@ async function copyToClipboard(text: string, host: HTMLElement): Promise<boolean
 export function attachMessageActions(
   row: HTMLElement,
   messageId: string,
-  strings: ChatStrings,
-  store: ChatStore,
-  onFeedback: FeedbackHandler,
+  ctx: UiContext,
   ts?: number
 ): void {
+  const { strings, store, onFeedback } = ctx
   if (ts) row.title = timeTitle(ts)
   const bar = el('div', 'acw-msg-actions')
 
@@ -208,11 +277,44 @@ export function attachMessageActions(
     lockRating(saved)
   } else {
     like.addEventListener('click', () => { lockRating(1); onFeedback(messageId, 1, row) })
-    dislike.addEventListener('click', () => { lockRating(-1); onFeedback(messageId, -1, row) })
+    dislike.addEventListener('click', () => {
+      lockRating(-1)
+      onFeedback(messageId, -1, row)
+      showReasons(row, messageId, ctx)
+    })
   }
 
   bar.append(copy, like, dislike)
   row.appendChild(bar)
+}
+
+/** After a thumbs-down: one optional question, then thanks and the contact link. */
+function showReasons(row: HTMLElement, messageId: string, ctx: UiContext): void {
+  const { strings } = ctx
+  const box = el('div', 'acw-reasons')
+  box.appendChild(el('p', 'acw-reasons-question', strings.feedbackQuestion))
+  const chips = el('div', 'acw-reasons-chips')
+  const reasons: [FeedbackReason, string][] = [
+    ['wrong', strings.reasonWrong],
+    ['off-topic', strings.reasonOffTopic],
+    ['outdated', strings.reasonOutdated],
+  ]
+  for (const [reason, label] of reasons) {
+    const chip = el('button', 'acw-chip acw-chip--small', label)
+    chip.type = 'button'
+    chip.addEventListener('click', () => {
+      ctx.onFeedback(messageId, -1, row, reason)
+      box.textContent = ''
+      box.appendChild(el('p', 'acw-reasons-question', strings.feedbackThanks))
+      const link = contactLink(ctx)
+      if (link) box.appendChild(link)
+    }, { once: true })
+    chips.appendChild(chip)
+  }
+  box.appendChild(chips)
+  row.appendChild(box)
+  const scroller = row.closest<HTMLElement>('.acw-messages')
+  if (scroller && scroller.lastElementChild === row) scrollToBottom(scroller)
 }
 
 // ── Notes (errors, rate limit) ─────────────────────────────────────────────
@@ -221,7 +323,8 @@ export function addErrorNote(
   scroller: HTMLElement,
   text: string,
   retryLabel: string,
-  onRetry: () => void
+  onRetry: () => void,
+  extra?: HTMLElement | null
 ): HTMLElement {
   const note = el('div', 'acw-note acw-note--error')
   note.setAttribute('role', 'alert')
@@ -233,6 +336,7 @@ export function addErrorNote(
     onRetry()
   }, { once: true })
   note.appendChild(retry)
+  if (extra) note.appendChild(extra)
   scroller.appendChild(note)
   scrollToBottom(scroller)
   return note
@@ -248,9 +352,8 @@ export function addSystemNote(scroller: HTMLElement, text: string): HTMLElement 
 }
 
 // ── Quick replies (appended to the message flow) ───────────────────────────
-// Three sources, one widget: the configured starter chips under the greeting,
-// backend follow-up suggestions from the SSE done-event after an answer, and
-// `followUps` of a local FAQ entry (a chip with a canned `answer`). The pick
+// Two sources, one widget: backend follow-up suggestions from the SSE
+// done-event after an answer, and `followUps` of a local FAQ entry (a chip with a canned `answer`). The pick
 // handler receives the full QuickReply — the controller decides whether it
 // answers locally or goes to the backend.
 

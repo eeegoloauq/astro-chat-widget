@@ -6,13 +6,23 @@
  * Storage failures (private mode, quota) degrade to an in-memory session.
  */
 
+import type { Source } from './types'
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   ts: number
-  /** The canned greeting — replayed without copy/rating actions. */
+  /** The canned greeting of versions ≤0.1.2. No longer written; skipped on replay. */
   kind?: 'greeting'
+  /** Pages the answer came from (SSE `done.sources`). */
+  sources?: Source[]
+  /** Answered locally from `quickReplies`, no backend call. */
+  local?: boolean
+  /** The visitor stopped the answer; `content` is the partial text. */
+  stopped?: boolean
+  /** The backend asked to offer `contactUrl` (SSE `done.handoff`). */
+  handoff?: boolean
 }
 
 export interface Conversation {

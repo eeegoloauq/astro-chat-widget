@@ -9,52 +9,59 @@
 
      :root {
        --acw-accent: #e31e24;
-       --acw-surface-solid: #16161a;
      }
 
-   Every default derives from --acw-accent where it can
-   (color-mix), so most brands only need to set the accent.
-   The default look is a dark glass panel that works on any page.
+   Every color default is a light-dark() pair. The widget root
+   sets color-scheme from --acw-color-scheme (default `light dark`,
+   i.e. follow the OS); a site with its own theme toggle sets
+   --acw-color-scheme: dark (or light) on :root in that theme.
+   Accent variants derive from --acw-accent (color-mix), so most
+   brands only need the accent.
+
+   The default surface is opaque. Glass is opt-in: set a
+   translucent --acw-surface and a --acw-blur (README recipe).
    ============================================================ */
 
 :root {
   /* Accent (buttons, links, FAB) */
   --_acw-accent: var(--acw-accent, #536dfe);
   --_acw-accent-hover: var(--acw-accent-hover, color-mix(in srgb, var(--_acw-accent) 86%, #fff));
-  --_acw-accent-soft: var(--acw-accent-soft, color-mix(in srgb, var(--_acw-accent) 65%, #fff));
+  /* Links, focus rings, selected actions: darker on light surfaces, lighter on dark */
+  --_acw-accent-soft: var(--acw-accent-soft, light-dark(color-mix(in srgb, var(--_acw-accent) 82%, #000), color-mix(in srgb, var(--_acw-accent) 65%, #fff)));
   --_acw-accent-strong: var(--acw-accent-strong, color-mix(in srgb, var(--_acw-accent) 72%, #000));
   --_acw-accent-disabled: var(--acw-accent-disabled, color-mix(in srgb, var(--_acw-accent) 40%, transparent));
   --_acw-on-accent: var(--acw-on-accent, #fff);
-  /* FAB glow: rest / pulse peak / hover */
+  /* FAB shadow: rest / keyboard focus / hover */
   --_acw-accent-glow-soft: var(--acw-accent-glow-soft, color-mix(in srgb, var(--_acw-accent) 30%, transparent));
   --_acw-accent-glow: var(--acw-accent-glow, color-mix(in srgb, var(--_acw-accent) 42%, transparent));
   --_acw-accent-glow-strong: var(--acw-accent-glow-strong, color-mix(in srgb, var(--_acw-accent) 55%, transparent));
 
-  /* Error notes — decoupled from accent (accent isn't always red) */
-  --_acw-danger: var(--acw-danger, #e5484d);
+  /* Error notes, unread dot, delete — decoupled from accent (accent isn't always red) */
+  --_acw-danger: var(--acw-danger, light-dark(#d93036, #e5484d));
 
   /* Surfaces */
-  --_acw-surface: var(--acw-surface, rgba(16, 16, 20, .88));           /* desktop glass panel */
-  --_acw-surface-solid: var(--acw-surface-solid, #101014);             /* mobile sheet + scrim */
-  --_acw-blur: var(--acw-blur, blur(24px) saturate(1.5));
-  --_acw-raise: var(--acw-raise, rgba(255, 255, 255, .08));            /* bubbles, hovers, inline code */
-  --_acw-raise-subtle: var(--acw-raise-subtle, rgba(255, 255, 255, .05));
-  --_acw-input-bg: var(--acw-input-bg, rgba(255, 255, 255, .06));
-  --_acw-input-bg-focus: var(--acw-input-bg-focus, rgba(255, 255, 255, .09));
-  --_acw-code-block-bg: var(--acw-code-block-bg, rgba(0, 0, 0, .3));
-  --_acw-scrollbar-thumb: var(--acw-scrollbar-thumb, rgba(255, 255, 255, .25));
+  --_acw-surface: var(--acw-surface, light-dark(#ffffff, #16171c));         /* desktop panel */
+  --_acw-surface-solid: var(--acw-surface-solid, light-dark(#ffffff, #16171c)); /* mobile sheet + scrim (must be opaque) */
+  --_acw-blur: var(--acw-blur, none);
+  --_acw-shadow: var(--acw-shadow, 0 24px 60px -12px light-dark(rgba(20, 22, 40, .28), rgba(0, 0, 0, .6)));
+  --_acw-raise: var(--acw-raise, light-dark(rgba(18, 20, 40, .06), rgba(255, 255, 255, .08)));            /* bubbles, hovers, inline code */
+  --_acw-raise-subtle: var(--acw-raise-subtle, light-dark(rgba(18, 20, 40, .035), rgba(255, 255, 255, .05)));
+  --_acw-input-bg: var(--acw-input-bg, light-dark(#ffffff, rgba(255, 255, 255, .06)));
+  --_acw-input-bg-focus: var(--acw-input-bg-focus, light-dark(#ffffff, rgba(255, 255, 255, .09)));
+  --_acw-code-block-bg: var(--acw-code-block-bg, light-dark(rgba(18, 20, 40, .05), rgba(0, 0, 0, .3)));
+  --_acw-scrollbar-thumb: var(--acw-scrollbar-thumb, light-dark(rgba(18, 20, 40, .22), rgba(255, 255, 255, .25)));
 
   /* Text */
-  --_acw-text-strong: var(--acw-text-strong, rgba(255, 255, 255, .96));
-  --_acw-text: var(--acw-text, rgba(255, 255, 255, .86));
-  --_acw-text-muted: var(--acw-text-muted, rgba(255, 255, 255, .62));
-  --_acw-text-placeholder: var(--acw-text-placeholder, rgba(255, 255, 255, .45));
-  --_acw-text-faint: var(--acw-text-faint, rgba(255, 255, 255, .38));
+  --_acw-text-strong: var(--acw-text-strong, light-dark(#121318, rgba(255, 255, 255, .96)));
+  --_acw-text: var(--acw-text, light-dark(#2b2d35, rgba(255, 255, 255, .86)));
+  --_acw-text-muted: var(--acw-text-muted, light-dark(#5c5f6b, rgba(255, 255, 255, .62)));
+  --_acw-text-placeholder: var(--acw-text-placeholder, light-dark(#80828e, rgba(255, 255, 255, .45)));
+  --_acw-text-faint: var(--acw-text-faint, light-dark(#7c7f8b, rgba(255, 255, 255, .42)));
 
   /* Borders */
-  --_acw-border: var(--acw-border, rgba(255, 255, 255, .14));
-  --_acw-border-strong: var(--acw-border-strong, rgba(255, 255, 255, .28));
-  --_acw-border-subtle: var(--acw-border-subtle, rgba(255, 255, 255, .08));
+  --_acw-border: var(--acw-border, light-dark(rgba(18, 20, 40, .12), rgba(255, 255, 255, .13)));
+  --_acw-border-strong: var(--acw-border-strong, light-dark(rgba(18, 20, 40, .22), rgba(255, 255, 255, .26)));
+  --_acw-border-subtle: var(--acw-border-subtle, light-dark(rgba(18, 20, 40, .07), rgba(255, 255, 255, .08)));
 
   /* Shape & rhythm */
   --_acw-font: var(--acw-font, inherit);
@@ -76,4 +83,10 @@
   /* Stacking. The scrim sits at panel − 1. */
   --_acw-z-fab: var(--acw-z-fab, 5000);
   --_acw-z-panel: var(--acw-z-panel, 10001);
+}
+
+/* light-dark() resolves against the used color-scheme of the element that
+   consumes the token, so setting it on the root is enough. */
+.acw-root {
+  color-scheme: var(--acw-color-scheme, light dark);
 }

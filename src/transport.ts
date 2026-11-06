@@ -5,16 +5,21 @@
  *   request  — JSON { sessionId, message, timestamp, lang }
  *   response — text/event-stream of `data: {...}` lines:
  *                { chunk: "..." }  incremental text
- *                { done: true, suggestions?: ["...", ...] }
+ *                { done: true, suggestions?: ["...", ...],
+ *                  sources?: [{ title, href }], handoff?: boolean }
  *                                  end of answer; optional follow-up
- *                                  questions rendered as quick-reply chips
+ *                                  questions rendered as quick-reply chips,
+ *                                  links to the pages the answer came from,
+ *                                  and a request to offer the contact link
  *                { error: "..." }  server-side failure
  *
  * EventSource can't POST, so this is fetch + ReadableStream. The stream is
  * truncated at MAX_MESSAGE_SIZE and the reader cancelled to bound memory.
  */
 
+import { isSafeUrl } from './links'
 import { logger } from './logger'
+import type { FeedbackReason, Source } from './types'
 
 /** Maximum single message content size in characters (~50KB). */
 export const MAX_MESSAGE_SIZE = 50_000
@@ -66,6 +71,16 @@ interface SSEEvent {
   done?: boolean
   error?: string
   suggestions?: unknown
+  sources?: unknown
+  handoff?: unknown
+}
+
+export interface StreamResult {
+  text: string
+  error?: string
+  suggestions?: string[]
+  sources?: Source[]
+  handoff?: boolean
 }
 
 const MAX_SUGGESTIONS = 3
@@ -79,6 +94,26 @@ function sanitizeSuggestions(raw: unknown): string[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && s.length <= MAX_SUGGESTION_LENGTH)
     .slice(0, MAX_SUGGESTIONS)
+}
+
+const MAX_SOURCES = 3
+const MAX_SOURCE_TITLE = 80
+
+/** Backend links → { title, href } with a safe scheme; anything else is dropped. */
+function sanitizeSources(raw: unknown): Source[] {
+  if (!Array.isArray(raw)) return []
+  const out: Source[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const { title, href } = item as Record<string, unknown>
+    if (typeof title !== 'string' || typeof href !== 'string') continue
+    const cleanTitle = title.trim().slice(0, MAX_SOURCE_TITLE)
+    const cleanHref = href.trim()
+    if (!cleanTitle || !isSafeUrl(cleanHref)) continue
+    out.push({ title: cleanTitle, href: cleanHref })
+    if (out.length === MAX_SOURCES) break
+  }
+  return out
 }
 
 /** Parse complete `data: {...}` lines. Malformed JSON is skipped with a warning. */
@@ -104,7 +139,7 @@ export async function readSSEStream(
   response: Response,
   onChunk: (accumulated: string) => void,
   signal: AbortSignal
-): Promise<{ text: string; error?: string; suggestions?: string[] }> {
+): Promise<StreamResult> {
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
   let accumulated = ''
@@ -129,7 +164,14 @@ export async function readSSEStream(
 
       for (const event of parseSSELines(completeLines)) {
         if (event.error) return { text: accumulated, error: event.error }
-        if (event.done) return { text: accumulated, suggestions: sanitizeSuggestions(event.suggestions) }
+        if (event.done) {
+          return {
+            text: accumulated,
+            suggestions: sanitizeSuggestions(event.suggestions),
+            sources: sanitizeSources(event.sources),
+            handoff: event.handoff === true,
+          }
+        }
         if (event.chunk) {
           accumulated += event.chunk
           if (accumulated.length > MAX_MESSAGE_SIZE) {
@@ -160,6 +202,8 @@ export async function postFeedback(
     userPrompt: string
     aiResponse: string
     lang: string
+    /** Set on the second POST after a thumbs-down; backends upsert by messageId. */
+    reason?: FeedbackReason | null
   }
 ): Promise<boolean> {
   if (!endpoint) return false
@@ -167,7 +211,7 @@ export async function postFeedback(
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, comment: null, timestamp: new Date().toISOString() }),
+      body: JSON.stringify({ reason: null, ...payload, comment: null, timestamp: new Date().toISOString() }),
     })
     return response.ok
   } catch (err) {
