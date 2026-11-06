@@ -7,15 +7,13 @@ from your AI backend.
 [![CI](https://github.com/eeegoloauq/astro-chat-widget/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/eeegoloauq/astro-chat-widget/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<img src="docs/demo.webp" alt="The mobile sheet: the home screen with quick answers and guides in light mode, and a streamed answer with its source link in dark mode" width="402">
-
 - Opens on a home screen with quick answers, guides and a field to ask.
 - Streams markdown answers from your backend over SSE, with links to their sources.
 - Answers known questions in the browser, without a backend call.
 - Follows light and dark mode; one CSS variable sets your brand color.
 - Keeps the composer above the iOS keyboard on phones.
 
-[Live demo](https://eeegoloauq.github.io/astro-chat-widget/)
+[Try the live demo](https://eeegoloauq.github.io/astro-chat-widget/)
 
 ## Install
 

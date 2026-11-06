@@ -1,6 +1,6 @@
 # Agent guide
 
-`astro-chat-widget` is an Astro chat component for content sites with an existing AI or support backend. It opens a native dialog and streams SSE answers. The npm package ships `src/` as TypeScript and CSS source; consumers compile it. `demo/` is a playground and is not published. See [docs/reference.md](./docs/reference.md) for the public API and [demo screenshots](./docs/demo.webp) and [theme screenshot](./docs/theming.webp) for the intended appearance.
+`astro-chat-widget` is an Astro chat component for content sites with an existing AI or support backend. It opens a native dialog and streams SSE answers. The npm package ships `src/` as TypeScript and CSS source; consumers compile it. `demo/` is a playground and is not published. See [docs/reference.md](./docs/reference.md) for the public API; the demo page shows the intended appearance.
 
 ## Commands and release
 
@@ -23,6 +23,6 @@ The demo has a Vercel adapter, but this repo specifies no deployment trigger or 
 - The panel opens on a home screen (home, chat, all guides) above one shared composer. Screens switch instantly, `.acw-screens` is `overflow: clip` and focus moves with `preventScroll`: a slide once let `focus()` scroll the clipped container sideways.
 - The default surface is opaque and follows the system theme through `light-dark()` tokens; glass is opt-in. No infinite or ambient animation.
 - Stop freezes an answer at what is on screen (`StreamingRenderer.shown()`); received but unrevealed text is dropped.
-- Keep the README short (one sentence, five bullets, install, usage, development). Details belong in `docs/reference.md`.
+- Keep the README short (one sentence, five bullets, install, usage, development) and without screenshots; the live demo shows the widget. Details belong in `docs/reference.md`.
 
 Planned larger work: `ROADMAP.md`.

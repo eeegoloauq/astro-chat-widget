@@ -111,10 +111,6 @@ visitor asks for reduced transparency; the mobile sheet always stays solid.
 }
 ```
 
-The mobile sheet with only the accent override:
-
-<img src="theming.webp" alt="The home screen re-branded with a single --acw-accent override" width="195">
-
 Full token list:
 
 | Token | Purpose |
