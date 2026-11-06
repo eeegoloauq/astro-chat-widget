@@ -6,12 +6,12 @@
 
 - `npm ci` installs from the lockfile; `.npmrc` disables install scripts.
 - `npm run check` runs `astro check` across the package and demo.
-- `npm run build` builds the Vercel demo. Both CI workflows run it after `npm run check`; it creates no npm package artifact.
+- `npm run build` builds the static demo for GitHub Pages. Both CI workflows run it after `npm run check`; it creates no npm package artifact.
 - `npm run demo` starts the mock backend and playground at `http://localhost:4322`.
 
 There is no automated runtime test suite. For behavior changes, use the demo to open the widget, send a message, inspect streamed markdown, and check the browser console. Desktop emulation cannot validate iOS keyboard or touch scrolling: use a real iOS device and `#kbdebug` for viewport numbers.
 
-The demo has a Vercel adapter, but this repo specifies no deployment trigger or rollback procedure. Before deploying it, identify the deployment and rollback mechanism in the hosting project; verify the demo after deployment and restore its previous deployment if needed. GitHub's publish workflow runs on `v*` tags or manual dispatch and publishes to npm after `npm run check`. A bad npm release requires a corrected version; the repo has no package rollback workflow.
+The demo deploys to GitHub Pages from `main`; [docs/pages.md](./docs/pages.md) has the checks and the rollback. GitHub's publish workflow runs on `v*` tags or manual dispatch and publishes to npm after `npm run check`. A bad npm release requires a corrected version; the repo has no package rollback workflow.
 
 ## Decisions to preserve
 
