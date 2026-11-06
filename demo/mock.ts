@@ -1,11 +1,21 @@
 import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from './endpoints'
 
 // Browser-only demo transport. The published component keeps its real fetch transport.
-const ANSWERS: { match: RegExp; text: string; suggestions: string[] }[] = [
+const README = 'https://github.com/eeegoloauq/astro-chat-widget#'
+
+interface Answer {
+  match?: RegExp
+  text: string
+  suggestions: string[]
+  sources?: { title: string; href: string }[]
+  handoff?: boolean
+}
+
+const ANSWERS: Answer[] = [
   {
     match: /theme|color|css|token|красн/i,
     text: [
-      'Theming is one CSS variable away — every color derives from `--acw-accent` via `color-mix()`:',
+      'Theming is one CSS variable: every accent shade derives from `--acw-accent` via `color-mix()`.',
       '',
       '```css',
       ':root {',
@@ -13,9 +23,10 @@ const ANSWERS: { match: RegExp; text: string; suggestions: string[] }[] = [
       '}',
       '```',
       '',
-      'The red phone frame on this page runs exactly this override. The full token table is in the README — surfaces, borders, text hierarchy, radii and motion are all overridable independently.',
+      'Pick red under **Make it yours** on this page to see it. Surfaces, borders, text, radii and motion have their own tokens too.',
     ].join('\n'),
     suggestions: ['Show markdown rendering', 'What about the iOS keyboard?'],
+    sources: [{ title: 'Theming', href: `${README}theming` }],
   },
   {
     match: /markdown|render|code/i,
@@ -33,6 +44,7 @@ const ANSWERS: { match: RegExp; text: string; suggestions: string[] }[] = [
       '> Blockquotes and horizontal rules work too.',
     ].join('\n'),
     suggestions: ['How do I theme it?', 'What about the iOS keyboard?'],
+    sources: [{ title: 'What it does', href: `${README}what-it-does` }],
   },
   {
     match: /ios|keyboard|mobile|клав/i,
@@ -42,12 +54,15 @@ const ANSWERS: { match: RegExp; text: string; suggestions: string[] }[] = [
       'Instead the sheet *rides* the keyboard: every `visualViewport` frame sets `--acw-vvh` and `--acw-vvtop`, the composer parks on the keyboard top, and an oversized opaque scrim masks the ≤1-frame settle. Append `#kbdebug` to the URL on a real device for a live readout.',
     ].join('\n'),
     suggestions: ['How do I theme it?', 'Show markdown rendering'],
+    sources: [{ title: 'Host page requirements', href: `${README}host-page-requirements` }],
   },
 ]
 
-const DEFAULT_ANSWER = {
+// An unmatched question: the backend asks the widget to offer the contact link.
+const DEFAULT_ANSWER: Answer = {
   text: 'This demo uses preset responses. Ask about theming, Markdown or mobile layout. For AI answers, connect your own backend.',
   suggestions: ['How do I theme it?', 'Show markdown rendering', 'What about the iOS keyboard?'],
+  handoff: true,
 }
 
 
@@ -62,10 +77,8 @@ window.fetch = async (input, init) => {
   if (url.href === FEEDBACK_ENDPOINT) return Response.json({ ok: true })
   const request = new Request(url, init)
   const { message = '' } = await request.json()
-  const answer = ANSWERS.find((item) => item.match.test(String(message))) ?? DEFAULT_ANSWER
-  const showcase = location.pathname.includes('/embed')
-  const firstDelay = showcase && /ios|keyboard|клав/i.test(message) ? 10500
-    : showcase && !new URLSearchParams(location.search).has('desktop') ? 1800 : 700
+  const answer = ANSWERS.find((item) => item.match?.test(String(message))) ?? DEFAULT_ANSWER
+  const firstDelay = 700
   const words = answer.text.split(/(?<=\s)/)
   const encoder = new TextEncoder()
   let index = 0
@@ -79,7 +92,7 @@ window.fetch = async (input, init) => {
         return
       }
       const event = index < words.length ? { chunk: words[index++] }
-        : { done: true, suggestions: answer.suggestions }
+        : { done: true, suggestions: answer.suggestions, sources: answer.sources, handoff: answer.handoff }
       controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
       if ('done' in event) controller.close()
     },

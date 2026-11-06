@@ -1,16 +1,27 @@
 ---
 /**
- * Demo playground — default theme, browser-only mock SSE transport (../mock.ts).
- * Run with `npm run demo`. Also the stage for README screenshots.
+ * Demo page. The page itself plays the host site, and the widget on it is the
+ * only instance: no recorded or looping previews. Answers come from the
+ * browser-only mock SSE transport (../mock.ts). Run with `npm run demo`.
  *
- * The two frames are iframes of ./embed.astro — the live widget playing a
- * scripted conversation on a loop (a "gif" that can't go stale): the desktop
- * glass panel over a light skeleton page, and the mobile sheet rebranded via
- * ?accent. The real interactive instance is the FAB in the corner.
+ * The "Make it yours" controls set the same public tokens a site would set on
+ * :root (--acw-color-scheme, --acw-accent, --acw-surface, --acw-blur) and print
+ * that CSS. On wide screens the panel opens once per visit, beside the content;
+ * on phones the widget's own button opens it.
  */
-const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 import AIChat from '../../src/AIChat.astro'
 import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from '../endpoints'
+import { ARTICLES, CONTACT_URL, QUICK_REPLIES, STRINGS } from '../content'
+
+const usage = `---
+import { AIChat } from 'astro-chat-widget'
+---
+<AIChat
+  endpoint="/api/chat"
+  contactUrl="/contact"
+  quickReplies={[{ text: 'Delivery options', answer: 'Courier **tomorrow**.' }]}
+  articles={[{ title: 'Shipping and returns', href: '/help/shipping', minutes: 3 }]}
+/>`
 ---
 
 <html lang="en">
@@ -22,10 +33,29 @@ import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from '../endpoints'
     />
     <!-- Same mark everywhere: favicon = docs/icon.svg (catalog avatar) — bubble + sparkle. -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%236b83ff'/><stop offset='1' stop-color='%234257e0'/></linearGradient></defs><rect width='128' height='128' rx='28' fill='url(%23g)'/><path d='M64 25c-24 0-43.5 16-43.5 35.7 0 11 6.1 20.9 15.6 27.4.2 5.6-1.6 11.6-5 16.5-1.1 1.6.2 3.7 2.1 3.4 9.2-1.4 17.2-5.3 22.8-9.9 2.6.4 5.3.6 8 .6 24 0 43.5-16 43.5-35.7S88 25 64 25z' fill='white'/><g fill='url(%23g)' transform='translate(41 37.7) scale(1.92)'><path d='M12 0c1.1 6.8 5.2 10.9 12 12-6.8 1.1-10.9 5.2-12 12-1.1-6.8-5.2-10.9-12-12C6.8 10.9 10.9 6.8 12 0z'/></g></svg>" />
-    <title>astro-chat-widget — demo</title>
+    <title>astro-chat-widget</title>
+    <meta name="description" content="A chat panel for Astro content sites: quick answers, guides and streamed AI answers." />
+    <!-- Apply saved demo settings before first paint, so nothing flashes. -->
+    <script is:inline>
+      try {
+        const s = JSON.parse(localStorage.getItem('acw-demo:settings') || '{}')
+        const root = document.documentElement
+        if (s.scheme === 'light' || s.scheme === 'dark') root.dataset.scheme = s.scheme
+        if (typeof s.accent === 'string' && /^#[0-9a-f]{6}$/i.test(s.accent)) root.style.setProperty('--acw-accent', s.accent)
+        if (s.surface === 'glass') root.dataset.surface = 'glass'
+      } catch {}
+    </script>
   </head>
   <body>
-    <nav class="corner" aria-label="Project links">
+    <div class="page">
+      <header class="top">
+        <span class="brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 3C6.5 3 2 6.6 2 11c0 2.5 1.4 4.7 3.6 6.2 0 1.3-.4 2.7-1.2 3.8-.3.4 0 .9.5.8 2.1-.3 3.9-1.2 5.2-2.3.6.1 1.2.1 1.9.1 5.5 0 10-3.6 10-8S17.5 3 12 3z"/>
+          </svg>
+          astro-chat-widget
+        </span>
+        <nav class="links" aria-label="Project links">
       <a
         class="pill gh"
         href="https://github.com/eeegoloauq/astro-chat-widget"
@@ -63,77 +93,73 @@ import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from '../endpoints'
           <span data-count></span>
         </span>
       </a>
-    </nav>
+        </nav>
+      </header>
 
-    <main>
-      <h1>astro-chat-widget</h1>
+      <main>
+        <section class="hero">
+          <h1>A chat panel for Astro content sites</h1>
+          <p class="lede">Quick answers, guides and streamed AI answers in one panel.</p>
+          <button class="install" type="button" title="Copy to clipboard">
+              <code>npm install astro-chat-widget</code>
+              <svg class="install-copy" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>
+              </svg>
+              <svg class="install-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 12.5 9.5 18 20 6.5"/>
+              </svg>
+          </button>
+        </section>
 
-      <button class="install" type="button" title="Copy to clipboard">
-        <code>npm install astro-chat-widget</code>
-        <svg class="install-copy" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>
-        </svg>
-        <svg class="install-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 12.5 9.5 18 20 6.5"/>
-        </svg>
-      </button>
+        <section class="block" aria-labelledby="try-title">
+          <h2 id="try-title">Make it yours</h2>
+          <form class="controls" id="controls">
+            <fieldset>
+              <legend>Theme</legend>
+              <div class="seg">
+                <input type="radio" name="scheme" id="scheme-system" value="system" checked /><label for="scheme-system">System</label>
+                <input type="radio" name="scheme" id="scheme-light" value="light" /><label for="scheme-light">Light</label>
+                <input type="radio" name="scheme" id="scheme-dark" value="dark" /><label for="scheme-dark">Dark</label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Accent</legend>
+              <div class="swatches">
+                <input type="radio" name="accent" id="accent-indigo" value="#536dfe" checked /><label for="accent-indigo" style="--c: #536dfe"><span class="sr">Indigo</span></label>
+                <input type="radio" name="accent" id="accent-red" value="#e31e24" /><label for="accent-red" style="--c: #e31e24"><span class="sr">Red</span></label>
+                <input type="radio" name="accent" id="accent-teal" value="#0f8a7e" /><label for="accent-teal" style="--c: #0f8a7e"><span class="sr">Teal</span></label>
+                <input type="radio" name="accent" id="accent-amber" value="#c2700a" /><label for="accent-amber" style="--c: #c2700a"><span class="sr">Amber</span></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Surface</legend>
+              <div class="seg">
+                <input type="radio" name="surface" id="surface-solid" value="solid" checked /><label for="surface-solid">Solid</label>
+                <input type="radio" name="surface" id="surface-glass" value="glass" /><label for="surface-glass">Glass</label>
+              </div>
+            </fieldset>
+          </form>
+          <pre class="code"><code id="css-out">:root {
+  /* defaults, nothing to set */
+}</code></pre>
+        </section>
 
-      <div class="frames" aria-hidden="true">
-        <figure class="device device--desktop">
-          <div class="chrome">
-            <span class="chrome-dots"><i></i><i></i><i></i></span>
-            <span class="chrome-url">yoursite.dev</span>
-          </div>
-          <div class="chrome-viewport">
-            <iframe src={`${base}/embed/?desktop`} title="" tabindex="-1"></iframe>
-          </div>
-          <figcaption><code>&lt;AIChat endpoint="/api/chat" /&gt;</code></figcaption>
-        </figure>
+        <section class="block" aria-labelledby="use-title">
+          <h2 id="use-title">Add it to a page</h2>
+          <pre class="code"><code>{usage}</code></pre>
+        </section>
 
-        <figure class="device device--phone">
-          <iframe src={`${base}/embed/?accent=%23e31e24&start=2&lag=4800`} title="" tabindex="-1"></iframe>
-          <figcaption><code>--acw-accent: #e31e24</code></figcaption>
-        </figure>
-      </div>
-    </main>
+      </main>
+
+    </div>
 
     <AIChat
       endpoint={CHAT_ENDPOINT}
       feedbackEndpoint={FEEDBACK_ENDPOINT}
-      strings={{
-        title: 'Widget demo',
-        greeting: 'Ask about theming, Markdown or mobile layout.',
-        disclaimer: 'Preset responses. Messages stay in your browser.',
-      }}
-      quickReplies={[
-        {
-          text: 'What can this widget do?',
-          answer: [
-            'Everything on this page ships as **one Astro component**:',
-            '',
-            '- Streaming answers over SSE, markdown rendered append-only',
-            '- Native `<dialog>` — floating panel on desktop (the page stays scrollable), iOS-keyboard-proof sheet on mobile',
-            '- Theming via `--acw-*` tokens — one accent variable to rebrand',
-            '- FAQ chips like this one answer **instantly, without a backend call**',
-            '',
-            'Zero framework runtime, one dependency.',
-          ].join('\n'),
-          followUps: [
-            {
-              text: 'Does it need a backend?',
-              answer: [
-                'For AI answers, yes — any endpoint speaking the tiny SSE protocol from the README (`{chunk}` events, then `{done}`).',
-                '',
-                'But chips with a canned `answer` — like this one — render locally. A pure FAQ tree needs **no backend at all**.',
-              ].join('\n'),
-              followUps: [{ text: 'How do I theme it?' }],
-            },
-            { text: 'Show markdown rendering' },
-          ],
-        },
-        { text: 'How do I theme it?' },
-        { text: 'What about the iOS keyboard?' },
-      ]}
+      strings={STRINGS}
+      quickReplies={QUICK_REPLIES}
+      articles={ARTICLES}
+      contactUrl={CONTACT_URL}
     />
   </body>
 </html>
@@ -181,226 +207,241 @@ import { CHAT_ENDPOINT, FEEDBACK_ENDPOINT } from '../endpoints'
   )
 
   // Click-to-copy on the install command; the icon confirms instead of a toast.
+  // navigator.clipboard exists only on https/localhost, so plain-http previews
+  // (a phone on the LAN) fall back to a selected textarea + execCommand.
+  async function copyText(text: string): Promise<boolean> {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch { /* fall through */ }
+    }
+    const scratch = document.createElement('textarea')
+    scratch.value = text
+    scratch.setAttribute('readonly', '')
+    scratch.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
+    document.body.appendChild(scratch)
+    scratch.select()
+    scratch.setSelectionRange(0, text.length) // iOS ignores select() alone
+    try {
+      return document.execCommand('copy')
+    } catch {
+      return false
+    } finally {
+      scratch.remove()
+    }
+  }
   const install = document.querySelector<HTMLButtonElement>('.install')
   install?.addEventListener('click', async () => {
+    if (!(await copyText('npm install astro-chat-widget'))) return
+    install.classList.add('is-copied')
+    window.setTimeout(() => install.classList.remove('is-copied'), 1600)
+  })
+
+  // ── "Make it yours": the same tokens a site would set ──────────────────
+  type Settings = { scheme: 'system' | 'light' | 'dark'; accent: string; surface: 'solid' | 'glass' }
+  const DEFAULTS: Settings = { scheme: 'system', accent: '#536dfe', surface: 'solid' }
+  const SETTINGS_KEY = 'acw-demo:settings'
+  const GLASS = {
+    surface: 'light-dark(rgba(255, 255, 255, .7), rgba(22, 23, 28, .74))',
+    blur: 'blur(22px) saturate(1.6)',
+  }
+  const root = document.documentElement
+  const form = document.querySelector<HTMLFormElement>('#controls')!
+  const out = document.querySelector<HTMLElement>('#css-out')!
+
+  function read(): Settings {
     try {
-      await navigator.clipboard.writeText('npm install astro-chat-widget')
-      install.classList.add('is-copied')
-      window.setTimeout(() => install.classList.remove('is-copied'), 1600)
-    } catch { /* clipboard unavailable — the text is right there to select */ }
+      return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }
+    } catch {
+      return { ...DEFAULTS }
+    }
+  }
+
+  function apply(s: Settings): void {
+    if (s.scheme === 'system') delete root.dataset.scheme
+    else root.dataset.scheme = s.scheme
+    root.style.setProperty('--acw-accent', s.accent)
+    if (s.surface === 'glass') {
+      root.dataset.surface = 'glass'
+      root.style.setProperty('--acw-surface', GLASS.surface)
+      root.style.setProperty('--acw-blur', GLASS.blur)
+    } else {
+      delete root.dataset.surface
+      root.style.removeProperty('--acw-surface')
+      root.style.removeProperty('--acw-blur')
+    }
+    const lines: string[] = []
+    if (s.accent !== DEFAULTS.accent) lines.push(`  --acw-accent: ${s.accent};`)
+    if (s.scheme !== 'system') lines.push(`  --acw-color-scheme: ${s.scheme};`)
+    if (s.surface === 'glass') lines.push(`  --acw-surface: ${GLASS.surface};`, `  --acw-blur: ${GLASS.blur};`)
+    out.textContent = `:root {\n${lines.length ? lines.join('\n') : '  /* defaults, nothing to set */'}\n}`
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)) } catch {}
+  }
+
+  const initial = read()
+  for (const [name, value] of Object.entries(initial)) {
+    const input = form.querySelector<HTMLInputElement>(`input[name="${name}"][value="${value}"]`)
+    if (input) input.checked = true
+  }
+  apply(initial)
+  form.addEventListener('change', () => {
+    const data = new FormData(form)
+    apply({
+      scheme: data.get('scheme') as Settings['scheme'],
+      accent: String(data.get('accent')),
+      surface: data.get('surface') as Settings['surface'],
+    })
+  })
+
+  // Wide screens have room for the panel beside the content: open it once per
+  // visit so the product is visible without a click. Phones get the button.
+  window.addEventListener('load', () => {
+    if (!window.matchMedia('(min-width: 1100px)').matches) return
+    try {
+      if (sessionStorage.getItem('acw-demo:opened')) return
+      sessionStorage.setItem('acw-demo:opened', '1')
+    } catch { return }
+    document.dispatchEvent(new CustomEvent('acw:ask'))
   })
 </script>
 
 <style>
+  /* Page palette: light-dark() pairs follow color-scheme, which the Theme
+     control pins through data-scheme (the widget follows --acw-color-scheme). */
   :root {
-    color-scheme: dark;
+    color-scheme: light dark;
+    --bg: light-dark(#f6f6f4, #0e0f13);
+    --surface: light-dark(#ffffff, #16171c);
+    --text: light-dark(#17181d, #ecedf1);
+    --muted: light-dark(#5b5e6a, #a0a3ae);
+    --line: light-dark(#e2e2e7, #262830);
+    --code-bg: light-dark(#f0f0f2, #121318);
+    --link: light-dark(#3a4fd6, #95a6ff);
   }
+  :root[data-scheme='light'] { color-scheme: light; --acw-color-scheme: light; }
+  :root[data-scheme='dark'] { color-scheme: dark; --acw-color-scheme: dark; }
+
   body {
     margin: 0;
-    min-height: 100dvh;
-    display: grid;
-    place-items: center;
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    color: rgba(255, 255, 255, 0.9);
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Glass needs something behind it: a soft accent wash on the right, where
+     the panel sits. Only while glass is on. */
+  :root[data-surface='glass'] body {
     background:
-      radial-gradient(60rem 40rem at 80% -10%, rgba(83, 109, 254, 0.18), transparent 60%),
-      radial-gradient(50rem 35rem at -10% 110%, rgba(83, 109, 254, 0.1), transparent 60%),
-      #0c0c10;
+      radial-gradient(40rem 30rem at 92% 70%, color-mix(in srgb, var(--acw-accent, #536dfe) 30%, transparent), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  a { color: var(--link); text-underline-offset: 3px; }
+  code, pre { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+  /* Content column on the left; on wide screens the open panel sits to its right. */
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px));
   }
   main {
-    padding: 2.5rem 1.5rem;
-    text-align: center;
-  }
-  h1 {
-    margin: 0 0 0.5rem;
-    font-size: clamp(1.7rem, 4vw, 2.3rem);
-    letter-spacing: -0.02em;
-    color: #fff;
-  }
-  .hint {
-    margin: 0 0 1.1rem;
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.68);
+    max-width: 620px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+    padding-block: 40px 72px;
   }
 
-  /* Corner pills (GitHub, npm) — same glass vocabulary as the browser chrome below. */
-  .corner {
-    position: fixed;
-    top: max(1rem, env(safe-area-inset-top));
-    right: max(1rem, env(safe-area-inset-right));
-    z-index: 10;
+  .top {
     display: flex;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    padding-block: 18px;
+    border-bottom: 1px solid var(--line);
   }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; }
+  .brand svg { color: var(--acw-accent, #536dfe); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
   .pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.85rem;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.07);
-    font-size: 0.85rem;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 14px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.78);
     text-decoration: none;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
-  .pill:hover {
-    border-color: rgba(142, 162, 255, 0.55);
-    background: rgba(142, 162, 255, 0.1);
-    color: #fff;
-  }
+  .pill:hover { color: var(--text); border-color: var(--muted); }
   .count {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    padding-left: 0.55rem;
-    border-left: 1px solid rgba(255, 255, 255, 0.16);
-    color: rgba(255, 255, 255, 0.65);
+    gap: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--line);
     font-variant-numeric: tabular-nums;
   }
-  .pill.gh:hover .count {
-    color: #ffd76e;
-  }
-  .pill.npm:hover .count {
-    color: #ff8a80;
-  }
 
-  /* Copyable install command. */
+  h1 {
+    margin: 0 0 14px;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  h2 { margin: 0 0 16px; font-size: 1.3rem; letter-spacing: -0.01em; }
+  .lede { margin: 0 0 24px; font-size: 1.15rem; color: var(--muted); max-width: 34em; }
+
   .install {
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
-    margin: 0 0 2.25rem;
-    padding: 0.5rem 0.95rem;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.3);
-    color: rgba(255, 255, 255, 0.5);
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--muted);
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
   }
-  .install:hover {
-    border-color: rgba(142, 162, 255, 0.55);
-    color: rgba(255, 255, 255, 0.8);
-  }
-  .install code {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 0.85rem;
-  }
-  .install code::before {
-    content: '$ ';
-    color: rgba(142, 162, 255, 0.75);
-  }
-  .install .install-check {
-    display: none;
-    color: #7ce38b;
-  }
-  .install.is-copied .install-copy {
-    display: none;
-  }
-  .install.is-copied .install-check {
-    display: block;
-  }
-  /* Opens the chat via the widget's own data-acw-open hook (see AIChat.astro). */
-  .hint a {
-    color: #8ea2ff;
-    text-decoration-color: rgba(142, 162, 255, 0.45);
-    text-underline-offset: 3px;
-  }
-  .frames {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 2.5rem;
-  }
-  .device {
+  .install code { font-size: 14px; color: var(--text); }
+  .install code::before { content: '$ '; color: var(--muted); }
+  .install:hover { border-color: var(--muted); }
+  .install .install-check { display: none; color: #2f9e57; }
+  .install.is-copied .install-copy { display: none; }
+  .install.is-copied .install-check { display: block; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 20px 32px; margin: 0 0 16px; }
+  fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+  legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .controls input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+  .seg label { min-height: 36px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 8px; color: var(--muted); font-size: 14px; cursor: pointer; }
+  .seg input:checked + label { background: var(--code-bg); color: var(--text); font-weight: 600; }
+  .seg input:focus-visible + label { outline: 2px solid var(--link); }
+  .swatches { display: flex; gap: 10px; min-height: 44px; align-items: center; }
+  .swatches label { width: 28px; height: 28px; border-radius: 50%; background: var(--c); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); }
+  .swatches input:checked + label { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--c); }
+  .swatches input:focus-visible + label { outline: 2px solid var(--text); outline-offset: 5px; }
+
+  .code {
     margin: 0;
-  }
-  .device figcaption {
-    margin-top: 0.9rem;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.55);
-  }
-  code {
-    font-family: ui-monospace, monospace;
-    font-size: 0.95em;
-    color: rgba(255, 255, 255, 0.75);
-  }
-  /* All frames are "gifs", not a second interactive instance — the corner
-     FAB is the live one. */
-  .device iframe {
-    pointer-events: none;
-    border: none;
-    display: block;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--code-bg);
+    font-size: 13.5px;
+    line-height: 1.55;
+    overflow-x: auto;
   }
 
-  /* Phone: the iframe viewport is under the widget's 768px breakpoint, so
-     the panel opens as the fullscreen mobile sheet. */
-  .device--phone iframe {
-    width: min(330px, 84vw);
-    height: 600px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 24px;
-    background: #0c0c10;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
-  }
-
-  /* Desktop: a wide iframe (>768px → floating panel mode) scaled down into
-     a browser-window frame. */
-  .device--desktop .chrome {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    padding: 0.55rem 0.9rem;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-bottom: none;
-    border-radius: 14px 14px 0 0;
-  }
-  .chrome-dots {
-    display: inline-flex;
-    gap: 6px;
-  }
-  .chrome-dots i {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.22);
-  }
-  .chrome-url {
-    flex: 1;
-    max-width: 16rem;
-    margin-inline: auto;
-    padding: 0.15rem 0.9rem;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.3);
-    font-family: ui-monospace, monospace;
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.45);
-  }
-  .chrome-viewport {
-    width: 750px;
-    height: 465px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-top: none;
-    border-radius: 0 0 14px 14px;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
-  }
-  .device--desktop iframe {
-    width: 1000px;
-    height: 620px;
-    transform: scale(0.75);
-    transform-origin: top left;
-  }
-  /* On an actual phone the desktop frame can't fit readably — and the real
-     widget in the corner already gives the mobile experience first-hand. */
-  @media (max-width: 880px) {
-    .device--desktop {
-      display: none;
-    }
-  }
 </style>
